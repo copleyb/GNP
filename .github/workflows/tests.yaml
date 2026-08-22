@@ -1,0 +1,38 @@
+# GitHub Actions — run the test suite on every push and pull request.
+# Reference PNGs are gitignored, so asset-dependent tests will skip.
+# This catches code-level regressions in the 130-test suite.
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          PYTHONPATH: src
+        run: python -m pytest tests/ -v
+
+      - name: Run asset integrity check
+        run: python scripts/sync_assets.py check || echo "⚠ Reference PNGs not present in CI (expected — they are gitignored)"
