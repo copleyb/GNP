@@ -1,0 +1,52 @@
+chapter_id: 1
+title: "Test Chapter"
+notes: "Minimal chapter plan for Parser testing."
+pages:
+  - page_id: "1_1"
+    layout: layout_02
+    continuity:
+      time_of_day: pre_dawn
+      location: alyssa_apartment
+    panels:
+      - position: 1
+        characters:
+          - alyssa
+        environment: alyssa_apartment
+        shot_type: wide
+        mood: calm
+        description: "Alyssa sits on the edge of her bed in a dimly lit apartment, dawn light peeking through venetian blinds."
+      - position: 2
+        characters:
+          - alyssa
+        environment: alyssa_apartment
+        shot_type: close_up
+        mood: determined
+        description: "Alyssa pulls on her technical jacket, the bright-blue tab on the collar catching the dim light."
+      - position: 3
+        characters:
+          - alyssa
+        environment: alyssa_apartment
+        shot_type: medium
+        mood: focused
+        description: "Alyssa stands by the window, looking out at the still-dark cityscape."
+  - page_id: "1_2"
+    layout: layout_01
+    continuity:
+      time_of_day: early_morning
+      location: city_exterior
+    panels:
+      - position: 1
+        characters:
+          - alyssa
+        environment: city_exterior
+        shot_type: wide
+        mood: quiet
+        description: "Alyssa walks through the damp city streets, her silhouette framed against brutalist architecture."
+      - position: 2
+        characters:
+          - alyssa
+          - hood
+        environment: city_exterior
+        shot_type: overhead
+        mood: suspenseful
+        description: "From above, Hood watches Alyssa from a rooftop, hidden in the dense shadows of the city's skyline."

@@ -1,0 +1,48 @@
+# project.yaml
+# Root configuration file. The compiler reads this first and uses it to locate all other project assets.
+# project_id is immutable once set. Do not change it after production has begun.
+
+project_id: iron-city
+title: "Iron City"
+version: "0.1.0"
+compiler_version: "1.0.0"
+
+style: style.yaml
+characters_dir: characters/
+environments_dir: environments/
+layouts_dir: layouts/
+chapters_dir: chapters/
+output_dir: output/
+
+# External storage for reference images (PNGs are gitignored, synced via scripts/sync_assets.py).
+# Path is relative to project root, or absolute. Leave commented to use --source flag instead.
+# assets_source: ../graphic-novel-assets
+
+notes: "A noir graphic novel set in a near-future city."
+
+# Image generation backend configuration.
+# The backend is an interchangeable adapter — swapping models requires a new adapter class,
+# not pipeline changes. See DESIGN.md §10.
+image_generation:
+  backend: "openai"
+  model: "gpt-image-2"
+  quality: "high"
+  reference_budget: 8          # Max reference images per panel. API max is 16. See DESIGN.md §9.
+  thinking: "medium"           # off | low | medium | high. Controls reasoning before rendering. See DESIGN.md §10.
+  seed: null                   # int32 for loose reproducibility, or null for random each time. See DESIGN.md §10.
+
+# Scene Prompt Generator configuration.
+# This LLM call produces the detailed scene prompt (layer [5]) from PanelSpec context.
+# See DESIGN.md §9 (Scene Prompt Generator).
+scene_prompt:
+  model: "gpt-4o-mini"
+  context_profile: "default_v1"
+
+# Validation pipeline configuration.
+# Weights apply to the composite score. See DESIGN.md §12.
+validation:
+  threshold: 0.80
+  weights:
+    character_consistency: 0.6
+    style_adherence: 0.4
+  max_regeneration_attempts: 3

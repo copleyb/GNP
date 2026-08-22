@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "environment.schema.json",
+  "title": "Environment",
+  "description": "Canonical environment/location definition. One file per environment in the environments/ directory.",
+  "type": "object",
+  "required": [
+    "environment_id",
+    "display_name",
+    "version",
+    "description",
+    "prompt_tokens"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "environment_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Immutable slug. Must match the filename (e.g. city_exterior.yaml -> city_exterior)."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Full prose description. For human reference and validation layer prompts."
+    },
+    "prompt_tokens": {
+      "type": "object",
+      "required": ["identity"],
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "string",
+          "description": "Canonical description inserted verbatim into generation request prompts."
+        },
+        "exclusions": {
+          "type": "array",
+          "description": "Negative prompt tokens specific to this environment.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "Optional reference images for this environment. May be empty.",
+      "items": {
+        "type": "object",
+        "required": ["ref_id", "file", "purpose", "priority"],
+        "additionalProperties": false,
+        "properties": {
+          "ref_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "file": {
+            "type": "string",
+            "description": "Path to the reference image, relative to the environments/ directory."
+          },
+          "purpose": {
+            "type": "string",
+            "enum": ["establishing_shot", "detail", "lighting_reference", "overhead_plan"],
+            "description": "Semantic role of this reference image."
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# city_bar_interior.yaml — Environment definition for the bar interior.
+
+environment_id: city_bar_interior
+display_name: "Bar Interior"
+version: "1.0.0"
+
+description: >
+  Traditional inner-city dive bar. Dark wood, solid stained tables, dingy lighting, kitsch decor 
+  with the occasional neon sign. Not crowded, but a few down-and-out regulars, the occasional passed-out drunk, and an unassuming bartender who's seen it all. Not filthy, not gross, but definitely not a happening spot either.
+
+prompt_tokens:
+  identity: "dingy inner-city dive bar, grubby light, solid well-used dark wood furniture, peeling wallpaper with kitsch decor, dust motes in the light, a place people come to drink alone"
+  exclusions:
+    - "no bright colours"
+    - "no cheap or flimsy furniture"
+    - "nothing shiny or new"
+
+references:
+  - ref_id: ref_establishing
+    file: city_bar_interior/ref_establishing.png
+    purpose: establishing_shot
+    priority: 1
+    notes: "Shot of the bar interior with dingy light."

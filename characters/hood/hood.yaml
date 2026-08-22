@@ -1,0 +1,37 @@
+# hood.yaml — Character definition for Hood, the protagonist.
+
+character_id: hood
+display_name: "Hood"
+version: "1.0.0"
+
+physical_description:
+  build: "tall, lean, athletic"
+  height_relative: "tall"
+  hair: "dark, rarely seen"
+  eyes: "dark brown, rarely seen"
+  skin: "tan, rarely seen"
+  distinctive_features:
+    - "red baseball cap"
+    - "red bandanna covering face"
+    - "sunglasses"
+
+costumes:
+  default:
+    description: "Dirty, spattered white full-zip hoodie, worn with the hood up. Full, baggy charcoal cargo pants. Red/white 80's style hi-top sneakers with black 'swoosh' marking, dark fingerless gloves."
+
+prompt_tokens:
+  identity: "Hood, a tall, lean street vigilante who conceals his identity with his hooded jacket and distinctive red hat, bandanna, and sunglasses combination. Typically wears a spattered white full-zip hoodie, charcoal cargo pants, and iconic 80's style sneakers."
+  exclusions:
+    - "never show eyes or face"
+
+references:
+  - ref_id: ref_front
+    file: hood/ref_front.png
+    purpose: front_neutral
+    priority: 1
+    notes: "Front view, standing, thinking pose."
+  - ref_id: ref_right
+    file: hood/ref_right.png
+    purpose: action
+    priority: 2
+    notes: "Jogging action, viewed from right."

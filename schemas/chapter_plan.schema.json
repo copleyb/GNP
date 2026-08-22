@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "chapter_plan.schema.json",
+  "title": "Chapter Plan",
+  "description": "Multi-page narrative and layout plan for a contiguous story arc. Authored by AI or human, reviewed and approved before production runs.",
+  "type": "object",
+  "required": [
+    "chapter_id",
+    "title",
+    "pages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "chapter_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Unique chapter number within the project. Assigned by the author."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Optional human-readable notes about this chapter's narrative arc."
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "page_id",
+          "layout",
+          "continuity",
+          "panels"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "page_id": {
+            "type": "string",
+            "pattern": "^[0-9]+_[0-9]+$",
+            "description": "Unique page identifier in {chapter_id}_{page_within_chapter} format. E.g. 2_3 for chapter 2, page 3."
+          },
+          "layout": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "description": "References a layout file by layout_id. The plan parser resolves this to pixel dimensions."
+          },
+          "continuity": {
+            "type": "object",
+            "description": "Page-level continuity state. Contains only fields that cannot be derived from the panel blocks.",
+            "required": [
+              "time_of_day",
+              "location"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "time_of_day": {
+                "type": "string",
+                "description": "E.g. dawn, morning, midday, afternoon, dusk, night."
+              },
+              "location": {
+                "type": "string",
+                "description": "References an environment by environment_id."
+              }
+            }
+          },
+          "panels": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Ordered list of panel specifications. Count must match the panel count in the referenced layout.",
+            "items": {
+              "type": "object",
+              "required": [
+                "position",
+                "characters",
+                "environment",
+                "shot_type",
+                "mood",
+                "description"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "position": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Panel position within the page. Must correspond to a position defined in the referenced layout."
+                },
+                "characters": {
+                  "type": "array",
+                  "description": "character_ids of characters present in this panel. Used by the compiler to select reference images.",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9_]+$"
+                  }
+                },
+                "environment": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$",
+                  "description": "environment_id for the location depicted in this panel."
+                },
+                "shot_type": {
+                  "type": "string",
+                  "enum": [
+                    "wide",
+                    "medium",
+                    "close_up",
+                    "extreme_close_up",
+                    "overhead",
+                    "low_angle",
+                    "dutch_angle"
+                  ],
+                  "description": "Camera framing. Overrides the layout's composition_hint."
+                },
+                "mood": {
+                  "type": "string",
+                  "description": "Emotional register of this panel. Influences lighting and composition tokens in the compiled prompt."
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Prose description of what is depicted in this panel. Primary creative input to the prompt compiler."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

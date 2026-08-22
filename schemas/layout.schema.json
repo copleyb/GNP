@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "layout.schema.json",
+  "title": "Layout Template",
+  "description": "Panel grid layout template. Defines precise pixel geometry for each panel position on a page.",
+  "type": "object",
+  "required": [
+    "layout_id",
+    "display_name",
+    "version",
+    "page",
+    "gutter_px",
+    "bleed_px",
+    "panels"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "layout_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Immutable slug. Must match the filename (e.g. layout_02.yaml -> layout_02)."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "page": {
+      "type": "object",
+      "required": ["width_px", "height_px", "dpi"],
+      "additionalProperties": false,
+      "properties": {
+        "width_px": {
+          "type": "integer",
+          "const": 2480,
+          "description": "Fixed at 2480px (A4 at 300dpi)."
+        },
+        "height_px": {
+          "type": "integer",
+          "const": 3508,
+          "description": "Fixed at 3508px (A4 at 300dpi)."
+        },
+        "dpi": {
+          "type": "integer",
+          "const": 300
+        }
+      }
+    },
+    "gutter_px": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Pixel gap between adjacent panels."
+    },
+    "bleed_px": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Bleed margin in pixels around the outer edge of the page."
+    },
+    "panels": {
+      "type": "array",
+      "description": "Ordered list of panel definitions. Position values must be unique and geometrically consistent. The plan parser validates arithmetic on load.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["position", "x", "y", "width_px", "height_px"],
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Panel position number within the layout. Must be unique within this layout."
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Left edge of the panel in pixels from page origin."
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Top edge of the panel in pixels from page origin."
+          },
+          "width_px": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Panel width in pixels. Passed to the image generator as the generation dimension."
+          },
+          "height_px": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Panel height in pixels. Passed to the image generator as the generation dimension."
+          },
+          "composition_hint": {
+            "type": "string",
+            "description": "Advisory composition suggestion for this panel position. Does not override the Chapter Plan's shot_type."
+          }
+        }
+      }
+    }
+  }
+}

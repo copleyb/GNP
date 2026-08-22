@@ -1,0 +1,160 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "project.schema.json",
+  "title": "Project",
+  "description": "Root project configuration. Read first by the compiler to locate all other assets.",
+  "type": "object",
+  "required": [
+    "project_id",
+    "title",
+    "version",
+    "compiler_version",
+    "style",
+    "characters_dir",
+    "environments_dir",
+    "layouts_dir",
+    "chapters_dir",
+    "output_dir"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Immutable slug identifier. Lowercase, hyphens only. Do not change after production begins."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the project configuration."
+    },
+    "compiler_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "The compiler version this project targets. The compiler will reject projects whose constraint it does not satisfy."
+    },
+    "style": {
+      "type": "string",
+      "description": "Path to style.yaml, relative to project root."
+    },
+    "characters_dir": {
+      "type": "string",
+      "description": "Path to characters directory, relative to project root."
+    },
+    "environments_dir": {
+      "type": "string",
+      "description": "Path to environments directory, relative to project root."
+    },
+    "layouts_dir": {
+      "type": "string",
+      "description": "Path to layouts directory, relative to project root."
+    },
+    "chapters_dir": {
+      "type": "string",
+      "description": "Path to chapters directory, relative to project root."
+    },
+    "output_dir": {
+      "type": "string",
+      "description": "Path to output directory, relative to project root. Application writes here; humans do not edit here."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Optional human-readable project notes."
+    },
+    "image_generation": {
+      "type": "object",
+      "description": "Image generation backend configuration. See DESIGN.md §10.",
+      "required": ["backend", "model", "quality", "reference_budget"],
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "type": "string",
+          "description": "Adapter identifier. The active backend is specified here, not hardcoded."
+        },
+        "model": {
+          "type": "string",
+          "description": "Model identifier passed to the backend API."
+        },
+        "quality": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "Generation quality level. Maps to API quality parameter."
+        },
+        "reference_budget": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "description": "Max reference images per panel. API maximum is 16. Default 8."
+        },
+        "thinking": {
+          "type": "string",
+          "enum": ["off", "low", "medium", "high"],
+          "description": "Controls how much the model reasons about the prompt before rendering. Default: medium.",
+          "default": "medium"
+        },
+        "seed": {
+          "type": ["integer", "null"],
+          "description": "int32 for loose reproducibility, or null for random each time. Default: null.",
+          "default": null
+        }
+      }
+    },
+    "scene_prompt": {
+      "type": "object",
+      "description": "Scene Prompt Generator configuration. See DESIGN.md §9.",
+      "required": ["model", "context_profile"],
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "LLM model used for scene prompt generation."
+        },
+        "context_profile": {
+          "type": "string",
+          "description": "Versioned context profile identifier. Changing this changes what inputs are passed to the LLM."
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "description": "Validation pipeline configuration. See DESIGN.md §12.",
+      "required": ["threshold", "weights", "max_regeneration_attempts"],
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Composite score required for acceptance. Below this, regeneration is triggered."
+        },
+        "weights": {
+          "type": "object",
+          "description": "Weights for composite score calculation. Must sum to 1.0.",
+          "required": ["character_consistency", "style_adherence"],
+          "additionalProperties": false,
+          "properties": {
+            "character_consistency": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "style_adherence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "max_regeneration_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum automatic regeneration attempts before escalating to human review."
+        }
+      }
+    }
+  }
+}

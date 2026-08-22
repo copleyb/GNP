@@ -1,0 +1,895 @@
+# Graphic Novel Production Pipeline — Design Document
+
+**Project:** Iron City  
+**Status:** Design phase — no implementation code written yet  
+**Last updated:** 2026-07-23  
+
+This document is the canonical record of all architectural and module-level design decisions for the graphic novel production pipeline. It is updated as decisions are made or revised. When this document conflicts with chat history, this document takes precedence.
+
+---
+
+## Table of Contents
+
+1. [System Overview](#1-system-overview)
+2. [Core Architecture](#2-core-architecture)
+3. [Reproducibility Contract](#3-reproducibility-contract)
+4. [Project File Structure](#4-project-file-structure)
+5. [Schema Strategy](#5-schema-strategy)
+6. [Identity and Naming Conventions](#6-identity-and-naming-conventions)
+7. [Module: Chapter Plan Producer](#7-module-chapter-plan-producer)
+8. [Module: Chapter Plan Parser](#8-module-chapter-plan-parser)
+9. [Module: Prompt Compiler](#9-module-prompt-compiler)
+10. [Module: Image Generation Backend](#10-module-image-generation-backend)
+11. [Module: Provenance Store](#11-module-provenance-store)
+12. [Module: Validation Pipeline](#12-module-validation-pipeline) *(design not yet started)*
+13. [Module: Regeneration Orchestrator](#13-module-regeneration-orchestrator) *(design not yet started)*
+14. [Deferred to v2](#14-deferred-to-v2)
+15. [Open Questions](#15-open-questions)
+
+---
+
+## 1. System Overview
+
+An engineering pipeline for AI-assisted graphic novel production. The system wraps OpenAI's inherently probabilistic image generation APIs in a deterministic orchestration layer, providing reproducibility, provenance tracking, structured validation, and targeted panel regeneration.
+
+**Design philosophy:** Deterministic orchestration around probabilistic generation. Every non-generative step is fully deterministic. Every generative step is tracked, versioned, and reproducible from a fixed input set.
+
+**What this system is not:**
+- It is not a ChatGPT-style interactive interface.
+- It does not aim for pixel-perfect character identity reproduction (see §3).
+- It does not replace human editorial judgment — it escalates to humans when automated confidence is insufficient.
+
+---
+
+## 2. Core Architecture
+
+### Pipeline stages
+
+```
+Human synopsis + chapter number
+        ↓
+Chapter Plan Producer (GPT-4o + project context)
+        ↓
+Human review / edit
+        ↓
+Chapter Plan (YAML) ← saved to chapters/chapter_N.yaml
+        ↓
+Chapter Plan Parser
+        ↓
+PanelSpec (JSON) ← canonical immutable input unit, persisted to disk
+        ↓
+Prompt Compiler
+        ↓
+GenerationRequest
+        ↓
+Backend Adapter (OpenAI gpt-image-2 or configurable)
+        ↓
+Provenance Store ← records every attempt
+        ↓
+Validation Pipeline
+        ↓
+Regeneration Orchestrator ← loops back to Backend if score below threshold
+        ↓
+Panel PNG output (flat labeled files)
+```
+
+### Generation unit
+The **panel** is the generation unit. One API call per panel. Pages are not generated as single units; they are assembled from individual panel outputs.
+
+The **page** remains the planning and continuity unit. Both are first-class concepts.
+
+### Output artifacts
+- One labeled PNG per panel, e.g. `c02_pg03_l02_pn01.png`
+- One PanelSpec JSON per panel (see §8)
+- Production logs from the Provenance Store
+
+Page assembly (compositing panels into a final page) is deferred to v2. In v1, the human compositor places panel PNGs manually.
+
+### Image generation backend
+- **Primary:** OpenAI `gpt-image-2` via the edits endpoint
+- **Abstracted:** The backend is an interchangeable adapter. Swapping models requires implementing a new adapter, not changing the pipeline.
+
+---
+
+## 3. Reproducibility Contract
+
+Full bit-for-bit determinism is **not achievable** with current generative model APIs and is not a design goal. The reproducibility contract is:
+
+> Given identical inputs (PanelSpec + compiler version + model version + generation parameters including seed), the system produces outputs that are **statistically stable** — recognizably the same scene, characters, and composition, with minor stochastic variation.
+
+This is the maximum reproducibility available from current APIs. It is sufficient for production purposes.
+
+A panel is fully reproducible from:
+1. Its persisted PanelSpec (frozen at parse time)
+2. The compiler version recorded in the PanelSpec
+3. The model version and generation parameters recorded in the Provenance Store
+
+---
+
+## 4. Project File Structure
+
+```
+{project_root}/
+├── project.yaml              # Root config. Compiler reads this first.
+├── style.yaml                # Global visual style. Injected into every generation.
+├── characters/
+│   └── {character_id}.yaml   # One file per character.
+├── environments/
+│   └── {environment_id}.yaml # One file per environment/location.
+├── layouts/
+│   └── {layout_id}.yaml      # One file per layout template.
+├── chapters/
+│   └── chapter_{N}.yaml      # Chapter Plans. Written by Producer, edited by human.
+├── schemas/
+│   ├── project.schema.json
+│   ├── style.schema.json
+│   ├── character.schema.json
+│   ├── environment.schema.json
+│   ├── layout.schema.json
+│   └── chapter_plan.schema.json
+└── output/
+    └── {panel_id}.png        # Generated panel assets.
+```
+
+**Storage:** Local directory on disk. No database, no Git requirement, no external API for storage.
+
+**Format:** YAML for all structured config. JSON for schemas and runtime artifacts (PanelSpec). PNG for generated panel output.
+
+**Compiler access:** Reads `project.yaml` at startup; resolves all other paths from there.
+
+---
+
+## 5. Schema Strategy
+
+**Decision: Formal JSON Schemas (Option B)**
+
+All YAML config files are validated against formal JSON Schema definitions (Draft-07) on load. The plan parser uses a JSON Schema validator library — not custom field-checking code — for structural validation.
+
+This applies to: `project.yaml`, `style.yaml`, all `characters/*.yaml`, all `environments/*.yaml`, all `layouts/*.yaml`, and all `chapters/*.yaml`.
+
+**Schema files** live in `schemas/` and are committed alongside project assets. They define:
+- Required fields
+- Field types and formats
+- Enum values (e.g. `shot_type`)
+- Pattern constraints (e.g. slug formats, semantic version strings)
+
+**Extensibility:** `continuity` and `panels` blocks in the Chapter Plan schema use `additionalProperties: true`. New fields can be added to these blocks without a schema version bump. New fields must be documented in the schema file before use — the schema is the contract between human author, LLM Producer, and parser.
+
+---
+
+## 6. Identity and Naming Conventions
+
+### Slugs
+All `_id` fields use lowercase slugs: `[a-z0-9_]` for underscores, `[a-z0-9-]` for hyphens where specified. Slugs are **immutable once set** — they appear in filenames, provenance records, and PanelSpecs. Changing a slug after production begins breaks lineage.
+
+### Page identity
+Format: `{chapter_id}_{page_within_chapter}`. Example: `2_3` = chapter 2, third page.
+
+Chapter-relative, not absolute. Absolute page numbers ("page 47 of the finished work") are a post-production human concern, not tracked by the system.
+
+### Panel identity (full)
+Format: `c{chapter}_pg{page}_l{layout_id}_pn{position}`. Example: `c02_pg03_l02_pn01`.
+
+Used in: output filenames, PanelSpec `panel_id`, Provenance Store records.
+
+### Versions
+All config files carry a `version` field in semantic version format (`MAJOR.MINOR.PATCH`). The `project.yaml` also carries `compiler_version` — the compiler version the project targets. The compiler enforces compatibility.
+
+---
+
+## 7. Module: Chapter Plan Producer
+
+**Status:** Design complete.
+
+### Purpose
+Accepts a human-provided narrative synopsis and chapter number. Calls an LLM with full project context. Writes a conforming `chapter_N.yaml` to the `chapters/` directory. Displays it to the user for immediate review.
+
+### Model
+- **Default:** GPT-4o
+- **Configurable:** Yes — model is a runtime parameter, not hardcoded. Allows regression testing across model versions.
+
+### Output format
+OpenAI **structured output mode** (`response_format` parameter). The `chapter_plan.schema.json` schema is passed directly to the API to enforce conformance at the token level. This is not prompt-based schema injection — it is the documented structured output API feature.
+
+Reference: https://platform.openai.com/docs/guides/structured-outputs
+
+### Context injected at call time
+The Producer assembles the following context dynamically before each call:
+- All `characters/*.yaml` files (character IDs, `prompt_tokens`, costume variants, `physical_description`)
+- All `environments/*.yaml` files (environment IDs, `prompt_tokens`, `exclusions`)
+- `style.yaml` (visual register, forbidden elements)
+
+This makes the Producer **project-aware**: it uses only character and environment IDs that actually exist in the project, and it respects environment-level exclusions (e.g. `city_exterior` forbids daylight) as creative constraints — the same constraints the Prompt Compiler will enforce at generation time.
+
+### Human input
+- Narrative synopsis for the chapter arc (prose, free text)
+- Chapter number
+
+Nothing else. All structural, visual, and canon constraints come from the injected project context.
+
+### Review and revision
+The Producer writes directly to `chapters/chapter_N.yaml`. No drafts folder. No version history. The user reviews the output inline — edits manually or re-runs the Producer to overwrite. Overwriting is intentional and acceptable; Chapter Plans are fast and cheap to regenerate.
+
+**Rationale for no version history:** Chapter Plans are simple structured documents that take seconds to regenerate. The overhead of versioning outweighs the benefit.
+
+### Context management infrastructure (v1 foundation)
+The API is stateless — each LLM call is fully independent with no conversation history or memory between calls. v1 assembles all context inline at call time (see "Context injected at call time" above).
+
+To allow future expansion of context management without structural rewrites, `producer.py` will include the following placeholder infrastructure in v1:
+
+- **`context_store`**: a dict or dataclass holding accumulated context data (e.g. prior chapter summaries, established narrative facts, recurring motifs). Empty in v1 — the Producer currently injects only project config files.
+- **`curate_context()`**: a function that selects and formats relevant context from `context_store` for inclusion in the LLM call. In v1, this is a pass-through that returns the current project config context unchanged.
+- **`update_context()`**: a function called after each successful generation to store any new context worth retaining (e.g. the generated chapter plan itself, for continuity with subsequent chapters). No-op in v1.
+
+This mirrors how a chat interface manages conversation history: accumulate, curate, inject. The hooks exist so that future iterations can add cross-chapter continuity, narrative memory, or curated context windows by modifying these functions — without changing the call structure or the Provenance Store schema.
+
+### Style/environment exclusions — dual-consumer note
+The `exclusions` fields in environment and style configs are consumed by both the Producer (as creative scripting constraints) and the Prompt Compiler (as negative prompt tokens for image generation). They must be authored with both consumers in mind.
+
+---
+
+## 8. Module: Chapter Plan Parser
+
+**Status:** Design complete.
+
+### Purpose
+Loads a Chapter Plan YAML file, validates it, resolves all references against project assets, and emits one `PanelSpec` per panel. Is the gateway between human-authored plans and the automated production pipeline. Must fail loudly and precisely — never pass ambiguous or unresolvable input downstream.
+
+### Validation stages (sequential, halt on first failure)
+
+**Stage 1 — Schema validation**  
+Validate against `chapter_plan.schema.json` using a JSON Schema validator library. Catches structural errors, missing fields, type mismatches, invalid enums, malformed IDs.
+
+**Stage 2 — Reference resolution**  
+For every panel:
+- Each `character_id` in `characters[]` must exist in the project character roster
+- `environment` must exist in the project environment roster
+- `layout` must exist in the project layout roster
+
+Error format: `"{filename} / page {page_id} / panel {position}: {field} '{value}' not found in project roster"`
+
+**Stage 3 — Layout geometry validation**  
+For every referenced layout:
+- Each panel's `x + width_px` ≤ `page.width_px`
+- Each panel's `y + height_px` ≤ `page.height_px`
+- Arithmetic errors are reported as layout file errors, not chapter plan errors
+
+**Modularity requirement:** Stage 3 is implemented as a standalone, replaceable geometry validator function with a defined interface. The Parser calls it; it does not depend on its internals. More sophisticated layout validation logic (bleed checks, gutter consistency, overlap detection) can be added in later iterations by replacing this function without touching the Parser.
+
+**Stage 4 — Panel count consistency**  
+Panel count in each chapter plan page must exactly match the panel count defined in the referenced layout. This is a hard error, not a warning.
+
+### PanelSpec — output type
+
+The PanelSpec is a fully resolved, self-contained JSON document. The Prompt Compiler operates on PanelSpecs with no further file I/O.
+
+**Key design decisions:**
+- **Style is embedded at parse time.** If `style.yaml` changes after parsing, in-flight generations are not affected.
+- **All character references are included** (not pre-filtered). Reference image prioritization is the Prompt Compiler's concern.
+- **`compiler_version` is embedded.** Enables detection of compiler changes between original generation and regeneration.
+
+**Persistence:** PanelSpecs are written to disk alongside panel output. The PanelSpec captures what the Parser resolved — the declared inputs to the Prompt Compiler, frozen at parse time. It is the first layer of a two-layer provenance chain.
+
+The second layer is the **Generation Record** in the Provenance Store, which captures what was actually sent to the image generator and what came back. Together they form complete panel provenance:
+
+```
+PanelSpec (parse-time snapshot)
+    ↓  referenced by panel_id
+Generation Record (generation-time snapshot)  ← one record per attempt
+    ↓
+Panel PNG output
+```
+
+The PanelSpec alone is not sufficient for exact reproduction of a specific generation attempt — it enables re-compilation, not replay. Replay requires the Generation Record from the Provenance Store.
+
+File naming: `{panel_id}.panelspec.json`, e.g. `c02_pg03_l02_pn01.panelspec.json`
+
+### PanelSpec structure (abbreviated)
+
+```json
+{
+  "panel_id": "c02_pg03_l02_pn01",
+  "chapter_id": 2,
+  "page_id": "2_3",
+  "layout_id": "layout_02",
+  "position": 1,
+  "panel_geometry": { "x": 10, "y": 10, "width_px": 2460, "height_px": 1136 },
+  "characters": [ { "character_id": "ada", "prompt_tokens": {...}, "references": [...] } ],
+  "environment": { "environment_id": "city_exterior", "prompt_tokens": {...}, "references": [] },
+  "shot_type": "wide",
+  "mood": "tense",
+  "description": "Ada stands at the edge of the city skyline, rain beginning to fall.",
+  "continuity": { "time_of_day": "night", "location": "city_exterior" },
+  "style": { "prompt_tokens": "...", "forbidden_elements": [...], "lighting_defaults": "..." },
+  "panel_seed": "A3",
+  "compiler_version": "1.0.0"
+}
+```
+
+---
+
+## 9. Module: Prompt Compiler
+
+**Status:** Design complete.
+
+### Purpose
+Takes a PanelSpec and produces a `GenerationRequest` — the fully assembled payload for the Backend Adapter. Layers [1–4] and [6–7] are deterministic; layer [5] (Scene Prompt Generator) is an LLM call and is inherently non-deterministic. The compiled prompt is captured verbatim in the Provenance Store for exact replay.
+
+### Prompt assembly order
+Prompt layers are appended in this fixed order:
+
+```
+[1] Style identity tokens         ← from style.yaml (embedded in PanelSpec)
+[2] Shot type + mood tokens        ← from PanelSpec (shot_type, mood)
+[3] Environment identity tokens    ← from environment.yaml (embedded in PanelSpec)
+[4] Character identity tokens      ← from each character, in characters[] array order
+[5] Scene prompt                   ← LLM-generated (Scene Prompt Generator, see below)
+[6] Negative / exclusion tokens    ← from style, environment, and character exclusions, deduplicated
+[7] Negative space directive       ← optional, see below
+```
+
+**Conflict resolution rule:** Character and environment exclusions override style tokens. Style is the default; asset-level exclusions are explicit overrides. Resolution is deterministic — no LLM call, no runtime judgment.
+
+### Reference image budget
+- **Total budget:** 8 reference images per panel (configurable in `project.yaml`; API maximum is 16).
+- **Allocation strategy:** Proportional with guaranteed minimums.
+  - Each character in the panel: guaranteed 1 slot.
+  - Environment: guaranteed 1 slot if any environment references exist.
+  - Remaining slots distributed equally among characters, rounded down. Leftover slots go to the primary character (first in `characters[]` array).
+  - Example: budget=6, two characters, one environment → guaranteed: ada=1, marcus=1, env=1. Remaining=3 → ada gets 2 extra, marcus gets 1 extra. Final: ada=3, marcus=2, env=1.
+- **Within each allocation:** References selected by `priority` field (lowest number = highest priority), top N selected.
+- **Underfill:** If a character has fewer references than their allocation, unused slots are left empty. They are not redistributed to other characters.
+
+### Reference image descriptions in the text prompt
+The gpt-image-2 edits endpoint accepts reference images but does not automatically infer which image corresponds to which character or environment. The model must be told, in the text prompt, what each reference image shows and how it should be used. Community guidance from the OpenAI developer forum confirms that without textual descriptions of reference images, results are unreliable.
+
+The Prompt Compiler appends a reference image description block after layer [7], as an implicit layer [8]:
+
+```
+[8] Reference image descriptions   ← generated by the Compiler from selected reference metadata
+```
+
+Each entry describes one selected reference image:
+- Character references: "Reference image N: [character display_name], [purpose] reference (e.g. front neutral pose, three-quarter view)."
+- Environment references: "Reference image N: [environment display_name] establishing shot / detail reference."
+
+This block is deterministic — it is assembled from the reference selection metadata (character_id, environment_id, purpose, display_name) and requires no LLM call. It is captured in the Generation Record as part of the verbatim prompt string.
+
+### Negative space injection
+The Compiler makes a per-panel decision about whether to inject a negative space directive (reserved area for a speech bubble). This is the only non-deterministic-looking element, but it is fully deterministic given the PanelSpec:
+
+- **Seed source:** The `panel_seed` field in the PanelSpec — a randomly generated hex byte (00–FF), e.g. `"A3"`. Generated by the Chapter Plan Parser at parse time and persisted in the PanelSpec. Stable across re-compilations of the same PanelSpec.
+- **Decision:** Binary. Even hex byte value → inject; odd → do not inject (or equivalent threshold — exact rule TBD at implementation). No size, orientation, or purpose variation in v1.
+- **Injected string (verbatim when triggered):** `"This panel should contain an area of negative space for a speech bubble. Don't draw the bubble, just compose the image accordingly."`
+- **Regeneration behavior:** Re-parsing the same Chapter Plan generates new `panel_seed` values, producing different binary outcomes. This gives the user control over negative space variation without changing the layout or chapter plan.
+- **Future extension:** The binary decision and fixed string are v1 scope. A later version may vary the string to specify size, position, or purpose (caption vs. speech bubble). The `panel_seed` field and injection point in the compiler are already designed to support this without structural changes.
+
+### Scene Prompt Generator
+The Scene Prompt Generator is a sub-component of the Prompt Compiler responsible for translating the brief Chapter Plan description into a detailed, composable scene narrative suitable for image generation.
+
+**Model:** GPT-4o-mini (default). Independently configurable from the Chapter Plan Producer model — separate setting in `project.yaml`.
+
+**Context inputs (modular):** The set of inputs passed to the LLM is explicitly defined and independently configurable. This is the primary tuning surface for improving scene prompt quality over time. Default input set:
+- Assembled layers [1–4]: style tokens, shot type, mood, environment tokens, character tokens
+- Panel `description` from the Chapter Plan
+- Panel `continuity` block (time of day, location, prior events)
+- Surrounding panel descriptions (previous and next panel in the page, for compositional coherence)
+- `user_feedback` (optional, present only on manual regeneration): free-text instruction from the human reviewer. Treated as the highest-priority instruction — overrides what the scene prompt would otherwise describe. `null` on first attempt and on automatic regenerations.
+
+The input set is defined as a named, versioned context profile in `project.yaml`. Swapping context profiles (e.g. providing more surrounding panels, adding chapter-level synopsis) requires only a config change, not a code change.
+
+**Output:** A single detailed prompt string, returned as plain text. This string becomes layer [5] in the final assembled prompt.
+
+**Non-determinism and provenance:** The Scene Prompt Generator output is inherently non-deterministic. The verbatim output string is captured in the Generation Record in the Provenance Store. This is the primary reason the Generation Record must store the compiled prompt string — the Scene Prompt layer cannot be reconstructed from the PanelSpec alone.
+
+### Context management infrastructure (v1 foundation)
+The Scene Prompt Generator's LLM call is stateless — each panel gets a fresh call with no memory of previous scene prompts. v1 assembles all context via the context_profile mechanism (see "Context inputs (modular)" above).
+
+To allow future expansion of context management without structural rewrites, `compiler.py` (and the Scene Prompt Generator sub-component) will include the following placeholder infrastructure in v1:
+
+- **`scene_context_store`**: a dict or dataclass holding accumulated context across panels and pages (e.g. prior scene prompts, established visual motifs, continuity details not captured in the Chapter Plan). Empty in v1 — the Scene Prompt Generator currently relies on the context_profile inputs alone.
+- **`curate_scene_context()`**: a function that selects relevant entries from `scene_context_store` for inclusion in the LLM call for a given panel. In v1, this is a pass-through — no entries are added beyond what the context_profile defines.
+- **`update_scene_context()`**: a function called after each scene prompt is generated to store the result and any derived metadata (e.g. established lighting, camera angle, blocking). No-op in v1.
+
+This mirrors how a chat interface manages conversation history: accumulate, curate, inject. The hooks exist so that future iterations can add cross-panel continuity, visual memory, or curated context windows by modifying these functions — without changing the GenerationRequest schema or the Provenance Store.
+
+### GenerationRequest output
+
+```json
+{
+  "panel_id": "c02_pg03_l02_pn01",
+  "model": "gpt-image-2",
+  "prompt": "<fully assembled prompt string, including reference image descriptions>",
+  "size": "1024x1536",
+  "quality": "high",
+  "thinking": "medium",
+  "seed": null,
+  "reference_images": [
+    { "ref_id": "ref_front", "file": "characters/ada/ref_front.png", "role": "character" },
+    { "ref_id": "ref_three_quarter", "file": "characters/ada/ref_three_quarter.png", "role": "character" },
+    { "ref_id": "ref_establishing", "file": "environments/city_exterior/ref_establishing.png", "role": "environment" }
+  ],
+  "panelspec_path": "output/c02_pg03_l02_pn01.panelspec.json",
+  "compiler_version": "1.0.0"
+}
+```
+
+### User workflow — page generation trigger
+Pages are generated on explicit per-page commands, not batch "generate everything" runs.
+
+- User command: "generate page 2_3" (chapter-relative page ID).
+- The application generates all panels on that page in sequence.
+- The Provenance Store determines generation status: if a `panel_id` has no Generation Records, it has not been run. No separate tracking needed.
+- A "generate all" convenience wrapper may be added in a future version but is not a v1 requirement.
+
+---
+
+## 10. Module: Image Generation Backend
+
+**Status:** Design complete.
+
+### Purpose
+Thin, interchangeable wrapper around a specific image generation API. Receives a `GenerationRequest` from the Prompt Compiler and returns a `GenerationResult` containing raw image bytes and API response metadata. Has no knowledge of PanelSpecs, provenance, validation, or pipeline state.
+
+### Adapter interface
+
+```python
+class ImageGenerationBackend:
+    def generate(self, request: GenerationRequest) -> GenerationResult:
+        ...
+```
+
+`GenerationResult`:
+```json
+{
+  "status": "success" | "failure" | "content_filtered",
+  "output_bytes": "<raw PNG bytes>",
+  "api_response_id": "img-abc123xyz",
+  "model": "gpt-image-2",
+  "error": null
+}
+```
+
+**Scope constraint:** The adapter does not write files. It returns bytes. The Regeneration Orchestrator is responsible for writing output files and recording results in the Provenance Store. This keeps the adapter stateless and independently testable.
+
+### gpt-image-2 adapter
+
+**Endpoint:** `POST /v1/images/edits`
+Reference: https://platform.openai.com/docs/api-reference/images/createEdit
+
+**Supported parameters:** `model`, `prompt`, `image` (array, up to 16), `size`, `quality`, `n`, `thinking`, `seed`.
+
+**Thinking parameter:** `off` | `low` | `medium` | `high`. Controls how much the model reasons about the prompt before rendering. Higher values improve compositional accuracy for complex scenes at the cost of latency and token usage. Configurable in `project.yaml` (default: `medium`). The adapter reads this from the `GenerationRequest.thinking` field, which is populated from config. Per-panel overrides are structurally possible via the GenerationRequest but not exposed in v1 config.
+
+**Seed parameter:** Any int32. Provides loose reproducibility — same seed plus same prompt produces close, but not identical, results. Configurable in `project.yaml` (default: `null`, meaning no seed is sent and each generation is fully random). The adapter reads this from the `GenerationRequest.seed` field. The seed strategy is designed for iteration: start with `null` for maximum variation, experiment with fixed or per-panel seeds after evaluating output quality.
+
+**Seed handling:** The gpt-image-2 API supports a `seed` parameter (int32) that provides loose reproducibility — same seed plus same prompt is close, but not identical. This is NOT the deterministic seed behavior of DALL-E 3. The `seed` field in the GenerationRequest is populated from `project.yaml` (default: `null`). When `null`, no seed is sent to the API and each generation is fully random. When set to an integer, that seed is sent for all generations. The actual seed value (or null) is recorded in the Generation Record for auditability.
+
+**Iteration plan:** Start with `seed: null` for v1 to maximize variation across panels. After evaluating output quality, experiment with fixed seeds (consistency across the project) or per-panel deterministic seeds (e.g. hash of panel_id, for reproducible re-runs). The GenerationRequest and Generation Record already carry the seed field, so per-panel strategies require no schema changes.
+
+**Supported sizes:** `1024x1024`, `1536x1024`, `1024x1536`. Arbitrary pixel dimensions are not supported.
+
+### Aspect ratio selection
+Panel pixel dimensions from the PanelSpec will rarely match the three supported API sizes exactly. The adapter includes an `aspect_ratio_selector` method:
+- Given panel `width_px` and `height_px` from the GenerationRequest, compute the panel's aspect ratio.
+- Select the closest matching API size from the three supported options.
+- Return the selected size string.
+
+The generated image is returned at the API's native resolution for the selected ratio. **Scale/crop post-processing to the final panel pixel dimensions is the caller's responsibility** — the Orchestrator applies this after receiving bytes from the adapter.
+
+**Rationale:** Keeping crop logic in the Orchestrator rather than the adapter preserves single responsibility. The adapter's only job is API communication.
+
+### Output format
+The adapter decodes the base64-encoded PNG response from the API and returns raw bytes (`bytes` type). It does not write files or manage temp paths. The caller receives bytes and writes to the appropriate output path using the panel_id and attempt number.
+
+**Memory impact:** A 1024×1536 PNG is approximately 4–6MB in memory. Negligible for single-panel generation.
+
+### Swapping backends
+To substitute a different image generation API (e.g. Stability AI, fal.ai), implement the `ImageGenerationBackend` interface with a new adapter class. No changes required to the Prompt Compiler, Provenance Store, or Orchestrator. The active backend is specified in `project.yaml`.
+
+**Known constraints from API research:**
+- `gpt-image-2` edits endpoint supports up to 16 reference images.
+- The model does not automatically infer which reference image corresponds to which character/environment. Reference images must be described in the text prompt (see §9, Reference image descriptions).
+- The `thinking` parameter adds reasoning tokens to the bill on top of image output tokens. Budget for 1.2–2× baseline image cost when `medium` or `high` is used.
+- The backend is an interchangeable adapter — pipeline does not call the API directly.
+
+---
+
+## 11. Module: Provenance Store
+
+**Status:** Design complete.
+
+### Purpose
+Write-once audit log of every generation attempt at the panel level. Never mutates records — only appends. Provides the second layer of the two-layer provenance chain.
+
+### Storage format
+**JSON Lines (JSONL)** — one `.provenance.jsonl` file per panel, located alongside the PanelSpec in `output/`. One line per attempt, appended on each generation run.
+
+File naming: `{panel_id}.provenance.jsonl`, e.g. `c02_pg03_l02_pn01.provenance.jsonl`
+
+**Rationale for JSONL over SQLite:** Simpler to implement given current resource constraints. Human-readable and inspectable without tooling. Appendable without loading the full file.
+
+**Modularity note:** The storage backend is encapsulated behind a `ProvenanceStore` interface with `append(record)` and `read_all(panel_id)` methods. Migrating to SQLite later requires replacing the implementation of that interface only — no changes to the Prompt Compiler, Backend Adapter, or Validation Pipeline.
+
+### Output file strategy
+- All generation attempts are retained on disk.
+- The **latest attempt** lives at: `output/{panel_id}_attempt_{N}.png`
+- **All prior attempts** are moved to: `output/archive/{panel_id}_attempt_{N}.png`
+- Manual garbage collection: delete the `archive/` folder contents whenever disk space is a concern. No code required.
+
+### Canonicality — human-only promotion
+**Nothing generated by the image generator is ever implicitly canonical.**
+
+Generated panels are marked `accepted_for_production: true/false` in their Generation Record when the Validation Pipeline scores them. This means: "good enough to use in the finished work." It does not mean: "suitable as a reference image."
+
+Canonical reference assets (character sheets, environment references) are exclusively human-curated. If the user considers a generated panel good enough to serve as a reference, they manually copy it into the appropriate asset directory (`characters/`, `environments/`). The system never auto-promotes generated output into the reference pool.
+
+**Why this matters:** Auto-promotion would allow the reference pool to drift based on generated outputs — each generation slightly influencing the next. This is a known failure mode. Human curation is the explicit gate.
+
+### Generation Record schema
+
+```json
+{
+  "record_id": "c02_pg03_l02_pn01_attempt_001",
+  "panel_id": "c02_pg03_l02_pn01",
+  "attempt_number": 1,
+  "timestamp_utc": "2026-07-19T22:15:00Z",
+
+  "compiler": {
+    "version": "1.0.0",
+    "prompt_hash": "sha256:abc123..."
+  },
+
+  "scene_prompt": {
+    "model": "gpt-4o-mini",
+    "context_profile": "default_v1",
+    "inputs": {
+      "style_tokens": "noir graphic novel illustration style, high contrast...",
+      "shot_type": "wide",
+      "mood": "tense",
+      "environment_tokens": "rain-slicked city streets at night...",
+      "character_tokens": "Ada, close-cropped silver-white hair...",
+      "panel_description": "Ada stands at the edge of the city skyline, rain beginning to fall.",
+      "continuity": { "time_of_day": "night", "location": "city_exterior" },
+      "surrounding_panels": {
+        "previous": "Marcus emerges from the stairwell doorway, silhouetted.",
+        "next": "Close on Ada's face, water running down her cheek."
+      },
+      "user_feedback": "make the rain heavier and push Ada further to the left"
+    },
+    "output": "Rain hammers the rooftop as Ada faces the city sprawl below, coat whipping in the wind. The skyline behind her is a jagged silhouette of neon against low clouds..."
+  },
+
+  "reference_selection": {
+    "budget": 8,
+    "allocation_algorithm": "proportional_primary_priority_v1",
+    "available": [
+      { "ref_id": "ref_front", "character_id": "ada", "priority": 1 },
+      { "ref_id": "ref_three_quarter", "character_id": "ada", "priority": 2 },
+      { "ref_id": "ref_full_body", "character_id": "ada", "priority": 3 },
+      { "ref_id": "ref_front", "character_id": "marcus", "priority": 1 },
+      { "ref_id": "ref_establishing", "environment_id": "city_exterior", "priority": 1 }
+    ],
+    "selected": [
+      { "ref_id": "ref_front", "character_id": "ada", "role": "character" },
+      { "ref_id": "ref_three_quarter", "character_id": "ada", "role": "character" },
+      { "ref_id": "ref_front", "character_id": "marcus", "role": "character" },
+      { "ref_id": "ref_establishing", "environment_id": "city_exterior", "role": "environment" }
+    ]
+  },
+
+  "generation_request": {
+    "model": "gpt-image-2",
+    "prompt": "<fully assembled prompt string, verbatim>",
+    "size": "1024x1536",
+    "quality": "high",
+    "thinking": "medium",
+    "seed": null,
+    "n": 1
+  },
+
+  "outcome": {
+    "status": "success",
+    "output_file": "output/c02_pg03_l02_pn01_attempt_001.png",
+    "api_response_id": "img-abc123xyz"
+  },
+
+  "validation": {
+    "layout_compliance": 1.0,
+    "character_consistency": {
+      "score": 0.81,
+      "observations": ["Character's silver-white hair is consistent with reference. Coat length differs slightly."],
+      "confidence": "medium"
+    },
+    "style_adherence": {
+      "score": 0.93,
+      "observations": ["High-contrast noir style matches project register."],
+      "confidence": "high"
+    },
+    "composite_score": 0.86,
+    "threshold": 0.80,
+    "weights_snapshot": { "character_consistency": 0.6, "style_adherence": 0.4 },
+    "accepted_for_production": true
+  }
+}
+```
+
+**Sub-record rationale:**
+- `scene_prompt` — records both what was passed to the Scene Prompt Generator and what it returned. The `context_profile` field is the key audit handle: if you change the profile and regenerate, you can diff two records and understand exactly what changed and why the output differed.
+- `reference_selection` — records the full available pool before budget allocation, plus the final selected set and the algorithm version that made the decision. If the allocation algorithm is updated, the versioned string makes the change traceable across all historical records.
+- These sub-records are write-once. They are never updated after the generation attempt completes.
+
+### Design dependency
+The Prompt Compiler must know what it is required to emit for recording purposes. The Provenance Store schema (above) is the contract the Prompt Compiler writes to. This is why Provenance Store design precedes Prompt Compiler design.
+
+---
+
+## 12. Module: Validation Pipeline
+
+**Status:** Design complete.
+
+### Purpose
+Evaluates each generated panel against project standards and returns structured scores. Treats vision model output as heuristic signals for human escalation, not objective quality measurements. Does not auto-reject — escalates below threshold.
+
+### Honest limitation
+Vision models (GPT-4o with vision) can describe and qualitatively compare images. They cannot measure. Scores from this pipeline are LLM opinions, not measurements. They are noisy (same image scored twice may differ) and susceptible to framing effects. The pipeline is designed around this reality: scores flag panels worth human attention, they do not certify quality.
+
+Reference: https://platform.openai.com/docs/guides/vision
+
+### Stage 1: Structural validation (deterministic code, no AI)
+
+Binary gate — must pass before semantic scoring runs. No score dimension; returns pass/fail only.
+
+Checks:
+- Output file exists and is a valid PNG
+- Image dimensions match the requested API size (one of the three supported: 1024x1024, 1536x1024, 1024x1536)
+- File size is non-trivial (not blank/corrupt)
+- If post-processing (scale/crop) has been applied, verify final dimensions match panel geometry from PanelSpec
+
+If Stage 1 fails, the panel does not proceed to Stages 2 or 3. The Generation Record records `layout_compliance: 0.0` and no further validation runs.
+
+### Stage 2: Semantic validation (GPT-4o vision, per-dimension calls)
+
+One API call per validation dimension. Each call receives the generated panel plus dimension-specific reference images. Uses OpenAI structured output mode (`response_format` with JSON schema) to return a structured result.
+
+**Per-dimension call structure:**
+```json
+{
+  "score": 0.0,
+  "observations": ["string"],
+  "confidence": "high" | "medium" | "low"
+}
+```
+
+- `score`: 0.0–1.0 continuous
+- `observations`: model's reasoning, surfaced to human reviewer on escalation
+- `confidence`: model's self-assessment of score reliability
+
+**Why per-dimension, not one call:** Each dimension needs different reference images (character sheets vs. style exemplars vs. surrounding panels). Isolated calls allow different reference sets per dimension, easier iteration on individual prompts, and fault isolation. Cost tradeoff: more API calls, but each is smaller and more targeted.
+
+**Dimensions:**
+
+| Dimension | References passed | What it checks |
+|---|---|---|
+| `character_consistency` | Character reference images from PanelSpec | Does the generated character match the canonical reference? Scores drift, does not hard-fail on style variation. Target: "stylized, variation acceptable." |
+| `style_adherence` | Style exemplars / style.yaml description | Does the panel match the project's visual register? |
+
+**Continuity validation — explicitly deferred:** Cross-image continuity was considered and rejected for v1. Vision models are weakest at cross-image comparison, producing high false-positive rates that would trigger unnecessary regenerations. The human reviewer checks continuity during manual compositing and regenerates specific panels with feedback if needed. May be revisited in v2 if manual checking proves burdensome.
+
+### layout_compliance — binary gate, not continuous score
+
+`layout_compliance` in the Generation Record is `1.0` (Stage 1 passed) or `0.0` (Stage 1 failed). It is not a continuous value and does not contribute to the composite score. It is a gate.
+
+### Composite score and threshold
+
+The `composite_score` is a weighted average of the two semantic dimensions (`character_consistency`, `style_adherence`). Weights are configurable in `project.yaml`:
+
+```yaml
+validation:
+  threshold: 0.80
+  weights:
+    character_consistency: 0.6
+    style_adherence: 0.4
+  max_regeneration_attempts: 3
+```
+
+- If `composite_score >= threshold`: panel marked `accepted_for_production: true`.
+- If `composite_score < threshold`: panel marked `accepted_for_production: false`, Orchestrator triggers regeneration.
+- After `max_regeneration_attempts` without reaching threshold: panel escalated to human review.
+
+### Updated Generation Record validation block
+
+```json
+"validation": {
+  "layout_compliance": 1.0,
+  "character_consistency": {
+    "score": 0.81,
+    "observations": ["Character's silver-white hair is consistent with reference. Coat length differs slightly."],
+    "confidence": "medium"
+  },
+  "style_adherence": {
+    "score": 0.93,
+    "observations": ["High-contrast noir style matches project register. Lighting is consistent."],
+    "confidence": "high"
+  },
+  "composite_score": 0.86,
+  "threshold": 0.80,
+  "weights_snapshot": { "character_consistency": 0.6, "style_adherence": 0.4 },
+  "accepted_for_production": true
+}
+```
+
+The `weights_snapshot` records the weight values active at validation time. If weights are changed in `project.yaml` between attempts, each record preserves what was used.
+
+---
+
+## 13. Module: Regeneration Orchestrator
+
+**Status:** Design complete.
+
+### Purpose
+Pipeline conductor. Receives generation commands, coordinates all other modules, applies post-processing, writes output files, and manages the regeneration loop. The only module the user directly interacts with. The only module that touches every other module.
+
+### Command interface
+
+```
+generate page 2_3                                    # generate all panels on page 2_3
+generate panel c02_pg03_l02_pn01                     # generate a single panel
+regenerate panel c02_pg03_l02_pn01                    # manual regeneration, full pipeline
+regenerate panel c02_pg03_l02_pn01 --backend-only     # reuse prompt, re-roll backend only
+regenerate panel c02_pg03_l02_pn01 --feedback "..."   # full pipeline with user feedback
+```
+
+`--feedback` and `--backend-only` are mutually exclusive — feedback requires the Scene Prompt Generator (full pipeline). Providing both is an error.
+
+Page-level generation resolves to sequential per-panel generation. Sequential, not parallel, for v1.
+
+### Pipeline execution per panel
+
+```
+1. Load PanelSpec from disk
+2. Call Prompt Compiler with PanelSpec + optional user_feedback
+   → Returns GenerationRequest (or reuses previous request if --backend-only)
+3. Call Backend Adapter with GenerationRequest
+   → Returns GenerationResult (raw bytes, API native size)
+4. Post-processing: scale-to-fill center crop to panel dimensions at pipeline DPI
+5. Write output file: output/{panel_id}_attempt_{N}.png
+6. Archive prior attempt: move previous output to output/archive/
+7. Append Generation Record to Provenance Store
+8. Run Validation Pipeline
+   → Returns scores + composite + accepted/rejected
+9. Decision:
+   - accepted → done, report to user
+   - rejected, auto_attempts < max → auto-regeneration (see below)
+   - rejected, auto_attempts >= max → escalate to human
+```
+
+**Attempt numbering:** The Provenance Store is the source of truth for attempt count. The Orchestrator reads existing records for the panel to determine the next attempt number. No separate state is maintained.
+
+### Automatic vs. manual regeneration
+
+**Automatic** (triggered by validation failure):
+- **Attempt 2 (first auto-regen):** Backend-only. Reuses the compiled prompt from the previous attempt. Only the image model's inherent stochasticity provides variation. Cheapest option — no LLM call.
+- **Attempts 3...max:** Full pipeline. Fresh Scene Prompt Generator LLM call + fresh Backend call. Both LLM non-determinism and image model stochasticity provide variation. If the first re-roll didn't fix it, the problem is likely in the prompt itself.
+- This hybrid is hardcoded, not configurable.
+- Capped at `max_regeneration_attempts` from project.yaml.
+- No user interaction between attempts.
+
+**Manual** (triggered by user command):
+- Accepts optional `--feedback` parameter and optional `--backend-only` flag.
+- Uncapped — user can regenerate as many times as they want.
+- Attempt counter continues incrementing (does not reset) — full history preserved in Provenance Store.
+- Can be triggered at any time, not just after escalation.
+
+### Scene prompt reuse flag
+
+When `--backend-only` is used (auto-regen attempt 2, or manual `--backend-only`), the scene prompt is reused from the previous attempt. The Generation Record records this:
+
+```json
+"scene_prompt": {
+  "regenerated": false,
+  ...
+}
+```
+
+`regenerated: true` on first attempts and full-pipeline regenerations. `regenerated: false` on backend-only regenerations. The verbatim prompt string is still stored in the record either way — the flag is for auditability, not for data recovery.
+
+### Human escalation
+
+When automatic regeneration exhausts `max_regeneration_attempts` without reaching threshold:
+
+1. Report to user: panel_id, all attempt scores, observations from last attempt's validation.
+2. Present options:
+   - **Regenerate with feedback** — user provides `--feedback`, manual regeneration runs (full pipeline).
+   - **Accept anyway** — user overrides the score. Panel marked `accepted_for_production: true` with `override: true` flag in the validation block.
+   - **Abort** — panel left in failed state, user can return to it later.
+
+The `override` flag distinguishes "passed validation" from "human overrode validation" in the provenance record.
+
+### Post-processing: unified resolution strategy
+
+**Pipeline output DPI: ~124 DPI** (determined by the full-page splash as the limiting case).
+
+**Rationale:** The largest possible panel is a full-page splash. The API's maximum portrait output is 1024 × 1536. After center-cropping to A4 aspect ratio (0.707), this yields 1024 × 1447px. At A4 width (8.267"), this is 1024 / 8.267 ≈ 124 DPI. This is the pipeline's internal output resolution for ALL panels.
+
+**Why this works:** Because the full-page splash is the largest possible panel and it fits within the API's maximum output, every smaller panel at 124 DPI is smaller than the API's native resolution. This means **every panel is produced by downscaling + center crop — the pipeline never upscales.**
+
+**Per-panel target dimensions:** Each panel's target dimensions at pipeline DPI = (panel geometry from layout) × (1024 / 2480) = × 0.413.
+
+**Scale-to-fill center crop** (applied to all panels):
+- Scale the API output image so it covers the panel's target dimensions (the shorter dimension matches, the longer overflows).
+- Center-crop the overflow symmetrically.
+- Pure code (Pillow/Lanczos resampling). Deterministic. No AI.
+
+**Upscaling to 300 DPI is an external post-production step**, not a pipeline module. The external upscaler takes the 124 DPI output directory and performs ~2.42× super-resolution in bulk to reach 300 DPI for print. This is the same category of operation as color correction or lettering — deterministic, reproducible, and separate from the generative pipeline.
+
+**Why external, not inline:**
+- Simpler pipeline (no second API dependency, no per-panel latency).
+- Bulk efficiency (cheaper to upscale a chapter's worth of panels at once).
+- Clean separation: pipeline owns composition; external process owns resolution.
+- Validation works on the 124 DPI image — content assessment doesn't require 300 DPI.
+
+### Post-processing provenance
+
+New `post_processing` sub-record in the Generation Record, between `outcome` and `validation`:
+
+```json
+"post_processing": {
+  "crop": {
+    "applied": true,
+    "strategy": "scale_to_fill_center_crop",
+    "input_dimensions": [1024, 1536],
+    "output_dimensions": [1024, 1447],
+    "pipeline_dpi": 124
+  }
+}
+```
+
+This records the pipeline's crop step. The external upscaling operation is not recorded here — it's a post-production step outside the pipeline's provenance scope, like compositing or lettering.
+
+### What the Orchestrator does NOT do
+
+- Does not modify PanelSpecs (immutable).
+- Does not call the image API directly (Backend Adapter's job).
+- Does not evaluate image quality (Validation Pipeline's job).
+- Does not store provenance records (appends to Provenance Store, but the Store owns the format).
+- Does not auto-promote generated images to reference assets (human-only, locked decision).
+- Does not upscale images (external post-production step).
+
+---
+
+## 13.5. UI Separation — Design Principle
+
+**Status:** Design complete.
+
+The pipeline is CLI-first for v1. A GUI may be added later as a separate layer. To ensure the GUI can be added without refactoring pipeline internals, the following hooks are required at implementation time:
+
+1. **Orchestrator commands as functions, not CLI handlers.** `generate_page()`, `generate_panel()`, `regenerate_panel()` are pure functions that accept parameters and return structured result objects. The CLI is a thin wrapper that calls these functions and prints results. A future GUI calls the same functions and renders results visually.
+
+2. **Results as structured data, not console output.** Generation and validation results are returned as typed objects (dicts/dataclasses), never printed directly. The CLI formats them as text; a GUI formats them as cards/badges. No `print()` statements inside pipeline modules.
+
+3. **Provenance Store query interface.** Beyond `append()` and `read_all(panel_id)`, the Store must support page-level and chapter-level queries: "all panels for page 2_3", "all panels with status = failed", "latest attempt for each panel on page 2_3." These queries serve both CLI reporting and GUI dashboards.
+
+4. **File-based output that's servable.** Output directory structure and filenames are predictable and self-describing. A GUI can serve these files directly via a static file server without a database.
+
+5. **Validation scores as typed results.** The Validation Pipeline returns structured score objects, not strings. A CLI prints them as a table; a GUI renders them as progress bars or color-coded badges.
+
+**What this means for implementation:** every module's public interface returns data. Console output lives exclusively in the CLI layer, which is a thin consumer of pipeline functions. No pipeline module imports a CLI library or writes to stdout.
+
+---
+
+## 14. Deferred to v2 / External
+
+- **Page compositor:** Assembly of panel PNGs into a full page artifact (e.g. Illustrator/PSD file). In v1, humans assemble panels manually using labeled filenames.
+- **Upscaling to 300 DPI:** External post-production step, not a pipeline module. The pipeline outputs at ~124 DPI (full-page width = 1024px). An external super-resolution tool (e.g. Real-ESRGAN, Topaz Gigapixel) performs ~2.42× upscaling in bulk to reach 300 DPI for print. Same category as color correction or lettering — deterministic, reproducible, separate from the generative pipeline.
+- **Negative space injection:** ~~Deferred~~ — incorporated into v1 Prompt Compiler design (§9). `panel_seed` in PanelSpec drives the injection decision deterministically.
+- **Continuity validation:** Explicitly considered and rejected for v1. Vision models are weakest at cross-image comparison. Human reviewer checks continuity during manual compositing. May be revisited in v2 if manual checking proves burdensome.
+
+---
+
+## 15. Open Questions
+
+- **PanelSpec persistence (Parser):** Locked — persisted to disk alongside panel output. ✓
+- ~~**Reference image budget strategy (Prompt Compiler)**~~ — Resolved. Budget=8 (configurable), proportional allocation with primary-character priority. See §9.
+- ~~**Validation score thresholds (Validation Pipeline)**~~ — Resolved. Threshold and weights configurable in `project.yaml`. See §12.
+- ~~**Maximum regeneration attempts (Orchestrator)**~~ — Resolved. Configurable as `max_regeneration_attempts` in `project.yaml` validation block. See §12.

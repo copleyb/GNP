@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "style.schema.json",
+  "title": "Style Guide",
+  "description": "Global visual style configuration. Compiler injects these tokens into every generation request.",
+  "type": "object",
+  "required": [
+    "style_id",
+    "version",
+    "visual_style",
+    "forbidden_elements",
+    "lighting_defaults"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "style_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Immutable slug identifier for this style."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "visual_style": {
+      "type": "object",
+      "required": ["label", "description", "prompt_tokens", "color_palette", "line_weight", "shading_approach"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "Short human-readable style label."
+        },
+        "description": {
+          "type": "string",
+          "description": "Full prose description of the visual style. For human reference."
+        },
+        "prompt_tokens": {
+          "type": "string",
+          "description": "Compiler inserts this string verbatim into every generation request prompt."
+        },
+        "color_palette": {
+          "type": "string",
+          "description": "Prose description of the color palette. Natural language only — models do not accept hex values."
+        },
+        "line_weight": {
+          "type": "string"
+        },
+        "shading_approach": {
+          "type": "string"
+        }
+      }
+    },
+    "forbidden_elements": {
+      "type": "array",
+      "description": "Negative prompt tokens injected into every generation request. Must include text/symbol exclusions.",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "lighting_defaults": {
+      "type": "string",
+      "description": "Default lighting instruction injected when no panel-level lighting is specified."
+    }
+  }
+}

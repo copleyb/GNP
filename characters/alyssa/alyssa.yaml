@@ -1,0 +1,42 @@
+# alyssa.yaml — Character definition for Alyssa, the female protagonist of New Bridgeton.
+# One file per character in characters/. Filename must match character_id.
+
+character_id: alyssa
+display_name: "Alyssa"
+version: "1.0.0"
+
+physical_description:
+  build: "athletic, lean"
+  height_relative: "average"
+  hair: "blonde, loose waves, with a loose ponytail AND a braid"
+  eyes: "pale blue, perceptive, kind"
+  skin: "fair"
+  distinctive_features:
+    - "hair has a braid in addition to the casual bun"
+    - "usually wears distinctive technical jacket"
+
+costumes:
+  default:
+    description: "Off-white technical jacket with distinctive clasps and a futuristic bright-blue tab on the collar; stone-colored cargo pants and comfortable, lightweight hiking boots."
+  variants:
+    - variant_id: morning_routine
+      description: "Boxer shorts and a comfortable t-shirt, barefoot, no jewelry, nothing lurid."
+      context: "Used in Alyssa's home when she's asleep or getting ready to start her day."
+
+prompt_tokens:
+  identity: "Alyssa, a strikingly beautiful blonde woman in a distinctive technical off-white jacket, stone-colored pants, and hiking boots with a calm, centered personality and large, observant eyes"
+  exclusions:
+    - "no alternate hair colors"
+    - "no vacant or vapid expressions"
+
+references:
+  - ref_id: ref_front
+    file: alyssa/ref_front.png
+    purpose: front_neutral
+    priority: 1
+    notes: "Full-body front view, neutral expression, default costume."
+  - ref_id: ref_three_quarter
+    file: alyssa/ref_three_quarter.png
+    purpose: three_quarter
+    priority: 2
+    notes: "Three-quarter view showing braid and thoughtful expression."

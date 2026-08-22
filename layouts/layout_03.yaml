@@ -1,0 +1,59 @@
+# layout_03.yaml — cinematic seven.
+# Page: 2480x3508 (A4 at 300dpi). Bleed: 30px. Gutter: 20px.
+
+layout_id: layout_03
+display_name: "Cinematic Seven"
+version: "1.0.0"
+description: "Two, three, two to present an action sequence."
+
+page:
+  width_px: 2480
+  height_px: 3508
+  dpi: 300
+
+gutter_px: 20
+bleed_px: 30
+
+panels:
+  - position: 1
+    x: 30
+    y: 30
+    width_px: 1800
+    height_px: 1136
+    composition_hint: "Intro panel — wide establishing or dialogue shot."
+  - position: 2
+    x: 1850
+    y: 30
+    width_px: 600
+    height_px: 1136
+    composition_hint: "Top-right panel - initiate action."
+  - position: 3
+    x: 30
+    y: 1186
+    width_px: 793
+    height_px: 1136
+    composition_hint: "Middle row left - action beat."
+  - position: 4
+    x: 843
+    y: 1186
+    width_px: 794
+    height_px: 1136
+    composition_hint: "Middle row center — reaction or action beat."
+  - position: 5
+    x: 1657
+    y: 1186
+    width_px: 793
+    height_px: 1136
+    composition_hint: "Middle row right — action climax."
+  - position: 6
+    x: 30
+    y: 2342
+    width_px: 1800
+    height_px: 1136
+    composition_hint: "Bottom left panel — action wind-down."
+  - position: 7
+    x: 1850
+    y: 2342
+    width_px: 600
+    height_px: 1136
+    composition_hint: "Outro panel - transition or end."

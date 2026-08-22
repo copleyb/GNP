@@ -1,0 +1,30 @@
+# alyssa_apartment.yaml — Environment definition for Alyssa's apartment.
+
+environment_id: alyssa_apartment
+display_name: "Apartment Interior"
+version: "1.0.0"
+
+description: >
+  Neat, comfortable studio apartment. Well-lit, especially by the morning sunlight.
+  Solid contemporary furniture in sand and earth tones. Clean fresh decor. A large window with 
+  venetian blinds looking out to the city. Not messy or sloppy, but not spartan or antiseptic.
+  Comfortably, efficiently occupied and used.
+
+prompt_tokens:
+  identity: "comfortable well-lit apartment interior, warm light, contemporary earthtone-neutral furniture, fresh decor, venetian blinds on a large window, beautiful in the morning light"
+  exclusions:
+    - "no dirt or grime"
+    - "no mess, clutter, or neglect"
+    - "no rot or decay"
+
+references:
+  - ref_id: ref_establishing
+    file: alyssa_apartment/ref_establishing.png
+    purpose: establishing_shot
+    priority: 1
+    notes: "Wide shot of the apartment interior with beautiful calm light."
+  - ref_id: ref_kitchen
+    file: alyssa_apartment/ref_kitchen.png
+    purpose: detail
+    priority: 2
+    notes: "Shot of the apartment interior, focused on the kitchen area."

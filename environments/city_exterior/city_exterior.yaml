@@ -1,0 +1,23 @@
+# city_exterior.yaml — Environment definition for the city exterior.
+
+environment_id: city_exterior
+display_name: "City Exterior"
+version: "1.0.0"
+
+description: >
+  Busy inner-city streets. Towering brutalist buildings with sparse
+  neon signage. Deep shadows in alleyways. Chronically damp asphalt reflecting neon.
+  Dense urban canyon with limited sky visibility. Beating heart of the city.
+
+prompt_tokens:
+  identity: "damp city streets, towering brutalist buildings, sparse neon signage reflecting off damp asphalt, deep shadows in alleyways, dense urban canyon, bustling city life"
+  exclusions:
+    - "no greenery"
+    - "no clear sky"
+
+references:
+  - ref_id: ref_establishing
+    file: city_exterior/ref_establishing.png
+    purpose: establishing_shot
+    priority: 1
+    notes: "Wide establishing shot of the city exterior."

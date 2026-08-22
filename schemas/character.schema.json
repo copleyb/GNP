@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "character.schema.json",
+  "title": "Character",
+  "description": "Canonical character definition. One file per character in the characters/ directory.",
+  "type": "object",
+  "required": [
+    "character_id",
+    "display_name",
+    "version",
+    "physical_description",
+    "costumes",
+    "prompt_tokens",
+    "references"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "character_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Immutable slug. Must match the filename (e.g. ada.yaml -> ada). Used as the reference key throughout the system."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "physical_description": {
+      "type": "object",
+      "description": "Human-readable description. Used by the validation layer (GPT-4o prompts) — NOT by the prompt compiler.",
+      "required": ["build", "height_relative", "hair", "eyes", "skin"],
+      "additionalProperties": false,
+      "properties": {
+        "build": { "type": "string" },
+        "height_relative": { "type": "string" },
+        "hair": { "type": "string" },
+        "eyes": { "type": "string" },
+        "skin": { "type": "string" },
+        "distinctive_features": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "costumes": {
+      "type": "object",
+      "required": ["default"],
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "type": "object",
+          "required": ["description"],
+          "additionalProperties": false,
+          "properties": {
+            "description": { "type": "string" }
+          }
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["variant_id", "description", "context"],
+            "additionalProperties": false,
+            "properties": {
+              "variant_id": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$"
+              },
+              "description": { "type": "string" },
+              "context": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "prompt_tokens": {
+      "type": "object",
+      "description": "Compiler-consumed strings. identity is inserted verbatim into every prompt featuring this character.",
+      "required": ["identity"],
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "type": "string",
+          "description": "Canonical short-form description used verbatim in prompts. Curate carefully — the compiler does not reconstruct this from physical_description."
+        },
+        "exclusions": {
+          "type": "array",
+          "description": "Negative prompt tokens specific to this character. Compiled into every request featuring this character.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "description": "Reference images attached to generation requests. Ordered by priority; compiler selects highest-priority images first when budget is constrained.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["ref_id", "file", "purpose", "priority"],
+        "additionalProperties": false,
+        "properties": {
+          "ref_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "file": {
+            "type": "string",
+            "description": "Path to the reference image, relative to the characters/ directory."
+          },
+          "purpose": {
+            "type": "string",
+            "enum": ["front_neutral", "three_quarter", "expression_range", "costume_detail", "action"],
+            "description": "Semantic role of this reference image."
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "1 = highest priority. Used when reference image budget is constrained by character count."
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

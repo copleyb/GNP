@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Assets Manifest",
+  "description": "Manifest of all reference image files (PNGs) that exist outside git. Used by scripts/sync_assets.py to verify and sync images from external storage.",
+  "type": "object",
+  "required": ["version", "generated_at", "assets"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of when the manifest was generated."
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Project ID from project.yaml, for sanity checking."
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "size_bytes", "asset_type"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path from project root (e.g. characters/alyssa/ref_front.png). Uses forward slashes."
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 hash of the file contents."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "File size in bytes."
+          },
+          "asset_type": {
+            "type": "string",
+            "enum": ["character", "environment"],
+            "description": "Whether this image belongs to a character or environment."
+          },
+          "entity_id": {
+            "type": "string",
+            "description": "Character or environment ID (e.g. 'alyssa', 'city_exterior')."
+          },
+          "ref_id": {
+            "type": "string",
+            "description": "Reference ID from the entity's YAML config (e.g. 'ref_front'). Optional — not all PNGs may map to a named reference."
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Purpose tag from the YAML reference (e.g. 'front_neutral', 'establishing_shot')."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

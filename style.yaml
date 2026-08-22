@@ -1,0 +1,30 @@
+# style.yaml
+# Global visual style configuration. The compiler injects these tokens into every generation request.
+# All panels in the project inherit these constraints. Do not override at the panel level.
+
+style_id: new_bridgeton_vivid
+version: "1.0.0"
+
+visual_style:
+  label: "graphic novel"
+  description: >
+    High-contrast, stylized graphic novel illustration. Bold ink lines, deep shadows, bold use
+    of complementing colors to tell an engaging story. Influenced by American Caper, the Parker Series, and Hard Boiled.
+  prompt_tokens: >
+    graphic novel illustration style, high contrast, bold ink lines, deep dramatic
+    shadows, stylized, full palette with selective color combos, cinematic framing
+  color_palette: >
+    Predominantly vivid and engaging, complementary, with specific colors identifying canonical character features and outfits. Color tells a rich, vibrant story in this work.
+  line_weight: "bold, deliberate ink lines with visible weight variation"
+  shading_approach: "hard shadows with minimal midtone graduation"
+
+forbidden_elements:
+  - "no photorealistic rendering"
+  - "no soft watercolor effects"
+  - "no anime or manga style"
+  - "no text, letters, numbers, or symbols of any kind"
+  - "no speech bubbles"
+  - "no captions"
+  - "no watermarks"
+
+lighting_defaults: "dramatic side lighting or overhead lighting; avoid flat even illumination"

@@ -1,0 +1,29 @@
+# layout_01.yaml — 2-panel vertical split.
+# Page: 2480x3508 (A4 at 300dpi). Bleed: 30px. Gutter: 20px.
+
+layout_id: layout_01
+display_name: "2-Panel Vertical Split"
+version: "1.0.0"
+description: "Two equal-height panels stacked vertically."
+
+page:
+  width_px: 2480
+  height_px: 3508
+  dpi: 300
+
+gutter_px: 20
+bleed_px: 30
+
+panels:
+  - position: 1
+    x: 30
+    y: 30
+    width_px: 2420
+    height_px: 1714
+    composition_hint: "Top panel — wide establishing or dialogue shot."
+  - position: 2
+    x: 30
+    y: 1764
+    width_px: 2420
+    height_px: 1714
+    composition_hint: "Bottom panel — reaction or action beat."
