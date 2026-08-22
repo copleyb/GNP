@@ -233,12 +233,12 @@ class TestReferenceBudgetAllocation:
 
 class TestNegativeSpace:
     def test_even_seed_injects(self, compiler, panel_spec):
-        """Even hex seed should inject the negative space directive."""
+        """Even hex seed should inject the speech bubble space directive."""
         spec = dict(panel_spec)
         spec["panel_seed"] = "A2"  # 162, even
         result = compiler._layer_negative_space(spec)
-        assert "negative space" in result
         assert "speech bubble" in result
+        assert "low detail" in result
 
     def test_odd_seed_does_not_inject(self, compiler, panel_spec):
         """Odd hex seed should NOT inject."""
@@ -252,7 +252,7 @@ class TestNegativeSpace:
         spec = dict(panel_spec)
         spec["panel_seed"] = "00"
         result = compiler._layer_negative_space(spec)
-        assert "negative space" in result
+        assert "speech bubble" in result
 
     def test_ff_seed_does_not_inject(self, compiler, panel_spec):
         """FF = 255, odd, should NOT inject."""
