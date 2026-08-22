@@ -469,8 +469,8 @@ class PromptCompiler:
 
         if seed_value % 2 == 0:
             return (
-                "This panel should contain an area of negative space for a speech bubble. "
-                "Don't draw the bubble, just compose the image accordingly."
+                "This composition should include relatively unused area of low detail where a speech bubble will eventually be added. "
+                "Don't draw the bubble, just compose the image so an editor can add it later."
             )
         return ""
 
