@@ -13,3 +13,5 @@ Alyssa's `morning_routine` variant exists in the character YAML but the panel sc
 More reference images coming soon. Pipeline is ready — each new character/environment needs YAML + PNGs + manifest regeneration via `scripts/sync_assets.py generate`.
 
 ## 5. Redesign continuity
+
+## 6. Redesign regeneration control
