@@ -2,7 +2,7 @@
 
 **Project:** Iron City  
 **Status:** Design phase — no implementation code written yet  
-**Last updated:** 2026-08-26  
+**Last updated:** 2026-08-26 (regeneration control)  
 
 This document is the canonical record of all architectural and module-level design decisions for the graphic novel production pipeline. It is updated as decisions are made or revised. When this document conflicts with chat history, this document takes precedence.
 
@@ -22,7 +22,7 @@ This document is the canonical record of all architectural and module-level desi
 10. [Module: Image Generation Backend](#10-module-image-generation-backend)
 11. [Module: Provenance Store](#11-module-provenance-store)
 12. [Module: Validation Pipeline](#12-module-validation-pipeline) *(design not yet started)*
-13. [Module: Regeneration Orchestrator](#13-module-regeneration-orchestrator) *(design not yet started)*
+13. [Module: Regeneration Orchestrator](#13-module-regeneration-orchestrator)
 14. [Deferred to v2](#14-deferred-to-v2)
 15. [Open Questions](#15-open-questions)
 
@@ -853,16 +853,74 @@ Pipeline conductor. Receives generation commands, coordinates all other modules,
 ### Command interface
 
 ```
+# Generation (first-time)
 generate page 2_3                                    # generate all panels on page 2_3
 generate panel c02_pg03_l02_pn01                     # generate a single panel
-regenerate panel c02_pg03_l02_pn01                    # manual regeneration, full pipeline
-regenerate panel c02_pg03_l02_pn01 --backend-only     # reuse prompt, re-roll backend only
-regenerate panel c02_pg03_l02_pn01 --feedback "..."   # full pipeline with user feedback
+
+# Regeneration (single command, parameter-driven category inference)
+regenerate panel c02_pg03_l02_pn01                    # replay: exact same request from provenance
+regenerate panel c02_pg03_l02_pn01 --seed 12345       # reroll: same prompt, different seed
+regenerate panel c02_pg03_l02_pn01 --thinking high    # reroll: same prompt, different thinking
+regenerate panel c02_pg03_l02_pn01 --feedback "..."    # revise: new scene prompt (preservation + instruction)
+regenerate panel c02_pg03_l02_pn01 --fresh-prompt     # revise: new scene prompt (cold start)
+regenerate panel c02_pg03_l02_pn01 --scene-prompt "..." # revise: direct scene prompt, no LLM
+regenerate panel c02_pg03_l02_pn01 --costume morning_routine  # regenerate: patch PanelSpec, full pipeline
+regenerate panel c02_pg03_l02_pn01 --shot-type dutch_angle --feedback "darker" --thinking high  # all compose
 ```
 
-`--feedback` and `--backend-only` are mutually exclusive — feedback requires the Scene Prompt Generator (full pipeline). Providing both is an error.
-
 Page-level generation resolves to sequential per-panel generation. Sequential, not parallel, for v1.
+
+### Regeneration categories
+
+Regeneration uses a single `regenerate` command. The category is inferred from the parameters provided — the user does not select a category explicitly. Four categories exist as an architectural concept; each maps to a specific set of pipeline stages that re-run:
+
+| Category | Triggered by | What re-runs | Default source for backend params |
+|---|---|---|---|
+| **Replay** | No flags | Backend only (exact GenerationRequest from provenance) | N/A (no overrides accepted) |
+| **Reroll** | Backend override flags only (`--seed`, `--quality`, `--thinking`) | Backend only (loaded from provenance, overrides applied) | Provenance (tweaking the last attempt) |
+| **Revise** | Scene prompt flags (`--feedback`, `--fresh-prompt`, `--scene-prompt`) | Compiler (new scene prompt + re-assemble layers) + Backend | Config (new request, fresh defaults) |
+| **Regenerate** | PanelSpec field flags (`--costume`, `--shot-type`, `--mood`, `--description`) | Parser (reload + patch PanelSpec) + Compiler + Backend | Config (new request, fresh defaults) |
+
+**Priority rule:** The deepest layer of change requested determines the category. Each category naturally includes the capabilities of all categories below it — `regenerate` accepts backend overrides AND scene prompt flags AND PanelSpec field overrides, all composing into a single regeneration request.
+
+**Parameter availability:**
+
+| Parameter | replay | reroll | revise | regenerate |
+|---|---|---|---|---|
+| `--seed` | — | ✅ | ✅ | ✅ |
+| `--quality` | — | ✅ | ✅ | ✅ |
+| `--thinking` | — | ✅ | ✅ | ✅ |
+| `--feedback` | — | — | ✅ | ✅ |
+| `--fresh-prompt` | — | — | ✅ | ✅ |
+| `--scene-prompt` | — | — | ✅ | ✅ |
+| `--costume` | — | — | — | ✅ |
+| `--shot-type` | — | — | — | ✅ |
+| `--mood` | — | — | — | ✅ |
+| `--description` | — | — | — | ✅ |
+
+**Conflict rules (validated at arg-parse time before any pipeline code runs):**
+
+- `--feedback`, `--fresh-prompt`, `--scene-prompt` — three-way mutex, pick at most one. Hard-fail with a clear error message if violated.
+- All other parameters compose freely — any non-conflicting combination is valid.
+
+### Scene prompt modes (for revise and regenerate categories)
+
+When the Scene Prompt Generator runs during a regeneration, the mode is determined by which scene-prompt flag was provided:
+
+| Flag | Mode | LLM call? | Preservation context? |
+|---|---|---|---|
+| `--feedback "..."` | Preservation + user instruction | Yes | Yes — prior scene prompt + structured diff + user instruction |
+| `--fresh-prompt` | Cold start | Yes | No — same as first generation |
+| `--scene-prompt "..."` | Direct text | No | N/A — user writes it directly |
+| *(none)* | Preservation (default) | Yes | Yes — prior scene prompt + structured diff only |
+
+**Preservation mode** is the default when no scene-prompt flag is given but the category is revise or regenerate. The LLM receives the prior scene prompt from provenance and a structured diff of what changed, with the instruction to preserve the previous description as closely as possible and only adjust for the requested changes. This supports the primary use case: "I like this image, just change the shot type."
+
+**Structured diff:** The Orchestrator computes the diff deterministically from the CLI flags the user provided. For field overrides, the diff is explicit: `{"shot_type": {"from": "wide", "to": "dutch_angle"}}`. For feedback, the diff carries the free-text instruction: `{"feedback": "make the lighting warmer"}`. Both can compose: `{"shot_type": {"from": "wide", "to": "dutch_angle"}, "feedback": "darker mood"}`.
+
+**Cold start exception:** If no prior Generation Record exists for the panel (first-ever regeneration of a panel that was generated before provenance tracking), the Scene Prompt Generator runs as a cold start regardless of the mode. This is a graceful degradation, not an error.
+
+**Non-destructive PanelSpec patching:** In the regenerate category, PanelSpec field overrides are applied in-memory for this generation only. The PanelSpec on disk is not modified. If the result is good, the user updates the chapter plan to persist the desired inputs for future generations.
 
 ### Pipeline execution per panel
 
@@ -901,30 +959,52 @@ The seed is recorded in the Generation Record's `generation_request.seed` field 
 ### Automatic vs. manual regeneration
 
 **Automatic** (triggered by validation failure):
-- **Attempt 2 (first auto-regen):** Backend-only. Reuses the compiled prompt from the previous attempt. Only the image model's inherent stochasticity provides variation. Cheapest option — no LLM call.
-- **Attempts 3...max:** Full pipeline. Fresh Scene Prompt Generator LLM call + fresh Backend call. Both LLM non-determinism and image model stochasticity provide variation. If the first re-roll didn't fix it, the problem is likely in the prompt itself.
+- **Attempt 2 (first auto-regen):** Maps to **reroll** with no overrides — exact replay of the last GenerationRequest. Only the image model's inherent stochasticity provides variation. Cheapest option — no LLM call.
+- **Attempts 3...max:** Maps to **revise** with no flags — preservation mode, fresh LLM scene prompt using the prior prompt as context. Both LLM non-determinism and image model stochasticity provide variation. If the first re-roll didn't fix it, the problem is likely in the prompt itself.
 - This hybrid is hardcoded, not configurable.
 - Capped at `max_regeneration_attempts` from project.yaml.
 - No user interaction between attempts.
 
 **Manual** (triggered by user command):
-- Accepts optional `--feedback` parameter and optional `--backend-only` flag.
+- Accepts any combination of non-conflicting parameters (see parameter table above).
 - Uncapped — user can regenerate as many times as they want.
 - Attempt counter continues incrementing (does not reset) — full history preserved in Provenance Store.
 - Can be triggered at any time, not just after escalation.
 
-### Scene prompt reuse flag
+### Regeneration provenance
 
-When `--backend-only` is used (auto-regen attempt 2, or manual `--backend-only`), the scene prompt is reused from the previous attempt. The Generation Record records this:
+Every regeneration appends a Generation Record with two new fields:
+
+```json
+"regeneration_category": "reroll",
+"overrides": {
+  "seed": 12345,
+  "thinking": "high"
+}
+```
+
+- `regeneration_category`: `"replay"` | `"reroll"` | `"revise"` | `"regenerate"` — records which category was inferred.
+- `overrides`: dict of parameters explicitly overridden by the user (empty for replay, or for auto-regeneration with no overrides).
+
+The `scene_prompt` sub-record gains a `mode` field:
 
 ```json
 "scene_prompt": {
-  "regenerated": false,
+  "regenerated": true,
+  "mode": "preservation",
+  "preservation_context": {
+    "prior_prompt": "...",
+    "change_summary": {"shot_type": {"from": "wide", "to": "dutch_angle"}}
+  },
   ...
 }
 ```
 
-`regenerated: true` on first attempts and full-pipeline regenerations. `regenerated: false` on backend-only regenerations. The verbatim prompt string is still stored in the record either way — the flag is for auditability, not for data recovery.
+- `regenerated`: `true` on first attempts, revise, and regenerate. `false` on replay and reroll (prompt reused from provenance).
+- `mode`: `"cold_start"` | `"preservation"` | `"preservation_with_feedback"` | `"direct"` | `"reused"`. For auditability.
+- `preservation_context`: present only when mode is preservation-based. Records the prior prompt and the structured diff passed to the LLM.
+
+The verbatim prompt string is always stored in the record regardless of mode — the metadata is for auditability and debugging, not for data recovery.
 
 ### Human escalation
 
@@ -996,7 +1076,7 @@ This records the pipeline's crop step. The external upscaling operation is not r
 
 The pipeline is CLI-first for v1. A GUI may be added later as a separate layer. To ensure the GUI can be added without refactoring pipeline internals, the following hooks are required at implementation time:
 
-1. **Orchestrator commands as functions, not CLI handlers.** `generate_page()`, `generate_panel()`, `regenerate_panel()` are pure functions that accept parameters and return structured result objects. The CLI is a thin wrapper that calls these functions and prints results. A future GUI calls the same functions and renders results visually.
+1. **Orchestrator commands as functions, not CLI handlers.** `generate_page()`, `generate_panel()`, `regenerate_panel()` are pure functions that accept parameters and return structured result objects. The CLI is a thin wrapper that parses flags, infers the regeneration category, calls the appropriate function, and prints results. A future GUI calls the same functions and renders results visually.
 
 2. **Results as structured data, not console output.** Generation and validation results are returned as typed objects (dicts/dataclasses), never printed directly. The CLI formats them as text; a GUI formats them as cards/badges. No `print()` statements inside pipeline modules.
 
