@@ -2,7 +2,7 @@
 
 **Project:** Iron City  
 **Status:** Design phase — no implementation code written yet  
-**Last updated:** 2026-08-23  
+**Last updated:** 2026-08-26  
 
 This document is the canonical record of all architectural and module-level design decisions for the graphic novel production pipeline. It is updated as decisions are made or revised. When this document conflicts with chat history, this document takes precedence.
 
@@ -159,6 +159,10 @@ This applies to: `project.yaml`, `style.yaml`, all `characters/*.yaml`, all `env
 
 **Extensibility:** `continuity` and `panels` blocks in the Chapter Plan schema use `additionalProperties: true`. New fields can be added to these blocks without a schema version bump. New fields must be documented in the schema file before use — the schema is the contract between human author, LLM Producer, and parser.
 
+**Character schema — costume-tagged references:** Reference images in the character schema carry an optional `costume` field (string, slug format, defaults to `"default"`). This tags each reference image with the costume variant it depicts, enabling the Parser to filter references to only those matching the panel's selected costume. Existing references without a `costume` field implicitly belong to the default costume — no existing character YAML needs to change until variant reference images are added.
+
+**Character schema — costume-agnostic identity:** The `prompt_tokens.identity` field in the character schema describes the *person*, not the *outfit*. Costume details live exclusively in the `costumes` block. The Parser composes the full identity string at parse time by concatenating the costume-agnostic identity with the selected costume description.
+
 ---
 
 ## 6. Identity and Naming Conventions
@@ -234,14 +238,18 @@ pages:
     panels:
       - position: 1
         scene_id: "c01_s01"
-        characters: ["alyssa"]
+        characters:
+          - character_id: alyssa
+            costume: morning_routine
         environment: "alyssa_apartment"
         shot_type: "wide"
         mood: "quiet"
         description: "Alyssa asleep in bed, morning light filtering through curtains."
       - position: 2
         scene_id: "c01_s01"
-        characters: ["alyssa"]
+        characters:
+          - character_id: alyssa
+            costume: morning_routine
         environment: "alyssa_apartment"
         shot_type: "medium"
         mood: "stirring"
@@ -252,14 +260,16 @@ pages:
     panels:
       - position: 1
         scene_id: "c01_s01"
-        characters: ["alyssa"]
+        characters:
+          - character_id: alyssa
         environment: "alyssa_apartment"
         shot_type: "wide"
         mood: "routine"
         description: "Alyssa at the kitchen counter, pouring coffee."
       - position: 2
         scene_id: "c01_s02"
-        characters: ["hood"]
+        characters:
+          - character_id: hood
         environment: "city_exterior"
         shot_type: "medium"
         mood: "ominous"
@@ -280,6 +290,8 @@ scenes:
 ```
 
 **Schema impact:** The `panels` array items gain an optional `scene_id` field (string, slug format). A new top-level `scenes` array is added to the chapter plan schema. Both use `additionalProperties: true` where appropriate for future extensibility. The `scenes` block is required — every panel must belong to a scene. Panels with the same `scene_id` are part of the same continuity group.
+
+**Character objects in panels:** The `characters` field in each panel changes from a string array (`["alyssa"]`) to an object array. Each object has a required `character_id` (string, slug) and an optional `costume` field (string, slug) that references a `variant_id` from the character's `costumes.variants` array. When `costume` is absent, the character's default costume is used. This structure is extensible — future per-character panel fields (e.g. `condition`, `expression`) can be added as optional properties without structural changes. See §8 for costume resolution details.
 
 ### Human input
 - Narrative synopsis for the chapter arc (prose, free text)
@@ -349,6 +361,9 @@ The PanelSpec is a fully resolved, self-contained JSON document. The Prompt Comp
 - **`compiler_version` is embedded.** Enables detection of compiler changes between original generation and regeneration.
 - **Continuity narrative is embedded.** The per-panel continuity narrative entry from the scene containing this panel is embedded in the PanelSpec as `continuity_narrative`. This is a string — the textual storyboard entry for this panel. The Scene Prompt Generator (§9) uses this as context when writing the scene prompt. If the chapter plan has no `scenes` block or the panel's `scene_id` is not found, `continuity_narrative` is `null` and the Scene Prompt Generator operates without continuity context (backward-compatible degradation).
 - **`scene_id` is embedded.** The panel's scene assignment is preserved in the PanelSpec for provenance and grouping during regeneration.
+- **Costume is resolved and composed at parse time.** The Parser reads the `costume` field from each character object in the panel. If present, it resolves the variant description from the character's `costumes.variants` array. If absent, it uses `costumes.default.description`. The Parser composes a complete identity string: `f"{identity}. Currently wearing: {costume_description}"` — where `identity` is the costume-agnostic `prompt_tokens.identity` from the character YAML. This composed string is frozen into the PanelSpec. If `style.yaml` or `costumes` change after parsing, in-flight generations are not affected (same principle as style embedding).
+- **Reference images are filtered by costume.** Each reference image in the character YAML may carry an optional `costume` field (defaults to `"default"`). The Parser filters references to only those matching the selected costume variant. If no references match the requested variant, the Parser falls back to default-costume references and emits a warning. This prevents the model from receiving jacket reference images for a sleepwear panel.
+- **`costume_variant` is embedded.** The resolved costume variant ID is preserved in the PanelSpec for provenance. Records which costume was active for this panel, even if the character YAML is later modified.
 
 **Persistence:** PanelSpecs are written to disk alongside panel output. The PanelSpec captures what the Parser resolved — the declared inputs to the Prompt Compiler, frozen at parse time. It is the first layer of a two-layer provenance chain.
 
@@ -376,7 +391,20 @@ File naming: `{panel_id}.panelspec.json`, e.g. `c02_pg03_l02_pn01.panelspec.json
   "layout_id": "layout_02",
   "position": 1,
   "panel_geometry": { "x": 10, "y": 10, "width_px": 2460, "height_px": 1136 },
-  "characters": [ { "character_id": "ada", "prompt_tokens": {...}, "references": [...] } ],
+  "characters": [
+    {
+      "character_id": "alyssa",
+      "display_name": "Alyssa",
+      "costume_variant": "morning_routine",
+      "prompt_tokens": {
+        "identity": "Alyssa, a strikingly beautiful blonde woman with a calm, centered personality and large, observant eyes. Currently wearing: Boxer shorts and a comfortable t-shirt, barefoot, no jewelry, nothing lurid.",
+        "exclusions": ["no alternate hair colors", "no vacant or vapid expressions"]
+      },
+      "references": [
+        { "ref_id": "ref_morning_front", "file": "characters/alyssa/ref_morning_front.png", "purpose": "front_neutral", "priority": 1 }
+      ]
+    }
+  ],
   "environment": { "environment_id": "city_exterior", "prompt_tokens": {...}, "references": [] },
   "shot_type": "wide",
   "mood": "tense",
@@ -407,7 +435,7 @@ Prompt layers are appended in this fixed order:
 [1] Style identity tokens         ← from style.yaml (embedded in PanelSpec)
 [2] Shot type + mood tokens        ← from PanelSpec (shot_type, mood)
 [3] Environment identity tokens    ← from environment.yaml (embedded in PanelSpec)
-[4] Character identity tokens      ← from each character, in characters[] array order
+[4] Character identity tokens      ← composed identity (costume-agnostic identity + costume description, frozen at parse time)
 [5] Scene prompt                   ← LLM-generated (Scene Prompt Generator, see below)
 [6] Negative / exclusion tokens    ← from style, environment, and character exclusions, deduplicated
 [7] Negative space directive       ← optional, see below
@@ -435,8 +463,10 @@ The Prompt Compiler appends a reference image description block after layer [7],
 ```
 
 Each entry describes one selected reference image:
-- Character references: "Reference image N: [character display_name], [purpose] reference (e.g. front neutral pose, three-quarter view)."
+- Character references: "Reference image N: [character display_name], [purpose] reference (e.g. front neutral pose, three-quarter view), [costume_variant] costume."
 - Environment references: "Reference image N: [environment display_name] establishing shot / detail reference."
+
+The costume variant in the character reference description reinforces the costume selected by the Parser. Since reference images are already filtered to the correct costume at parse time, this is redundant confirmation — but it helps the model understand that the reference image shows the character in the costume specified in the identity token (layer [4]).
 
 This block is deterministic — it is assembled from the reference selection metadata (character_id, environment_id, purpose, display_name) and requires no LLM call. It is captured in the Generation Record as part of the verbatim prompt string.
 
