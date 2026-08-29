@@ -341,10 +341,10 @@ REMINDER: Before finalising each page, count the entries in its panels array and
                                             "items": {
                                                 "type": "object",
                                                 "additionalProperties": False,
-                                                "required": ["character_id"],
+                                                "required": ["character_id", "costume"],
                                                 "properties": {
                                                     "character_id": {"type": "string"},
-                                                    "costume": {"type": "string"},
+                                                    "costume": {"type": ["string", "null"]},
                                                 },
                                             },
                                         },
