@@ -18,6 +18,9 @@ physical_description:
 costumes:
   default:
     description: "Dirty, spattered white full-zip hoodie, worn with the hood up. Full, baggy charcoal cargo pants. Red/white 80's style hi-top sneakers with black 'swoosh' marking, dark fingerless gloves."
+  variants:
+    - variant_id: roadwork
+      description: "Road construction gear. Hood's hat, bandana, and glasses are still in place, but he's wearing grubby work pants, steel-toed boots, and a bright, vivid oversized yellow reflective jacket."
 
 # identity is costume-agnostic — describes the person, not the outfit.
 # The Parser composes the full identity string at parse time by appending the costume description.
