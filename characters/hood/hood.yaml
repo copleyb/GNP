@@ -22,7 +22,7 @@ costumes:
 # identity is costume-agnostic — describes the person, not the outfit.
 # The Parser composes the full identity string at parse time by appending the costume description.
 prompt_tokens:
-  identity: "Hood, a tall, lean street vigilante who conceals his identity with his hooded jacket and distinctive red hat, bandanna, and sunglasses combination"
+  identity: "Hood, a tall, lean, athletic street vigilante who conceals his identity with a hood and face coverings."
   exclusions:
     - "never show eyes or face"
 
@@ -39,3 +39,15 @@ references:
     priority: 2
     costume: default
     notes: "Jogging action, viewed from right."
+  - ref_id: ref_roadwork_1
+    file: hood/ref_roadwork_1.png
+    purpose: costume
+    priority: 3
+    costume: roadwork
+    notes: "Standing, viewed from front."
+  - ref_id: ref_roadwork_2
+    file: hood/ref_roadwork_2.png
+    purpose: costume
+    priority: 4
+    costume: roadwork
+    notes: "Walking, viewed from right."

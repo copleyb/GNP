@@ -1,5 +1,5 @@
 version: '1.0'
-generated_at: '2026-08-22T05:35:37Z'
+generated_at: '2026-08-29T21:49:14Z'
 project_id: iron-city
 assets:
 - path: characters/alyssa/ref_front.png
@@ -30,6 +30,20 @@ assets:
   entity_id: hood
   ref_id: ref_right
   purpose: action
+- path: characters/hood/ref_roadwork_1.png
+  sha256: 111a272ce3a8d0188deb32b37ccb03620ce15952ad9d21058de994298cc65fc3
+  size_bytes: 2082773
+  asset_type: character
+  entity_id: hood
+  ref_id: ref_roadwork_1
+  purpose: costume
+- path: characters/hood/ref_roadwork_2.png
+  sha256: 5887fdcb26631a4da18a4579a9c39047d401b635715b9c84e0922778fdb7f5af
+  size_bytes: 2655217
+  asset_type: character
+  entity_id: hood
+  ref_id: ref_roadwork_2
+  purpose: costume
 - path: environments/alyssa_apartment/ref_establishing.png
   sha256: 84a4df42a830128b421289d6e869f2d67224a43432fb17bea4b8b23d2ad35713
   size_bytes: 2200791
