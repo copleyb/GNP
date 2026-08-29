@@ -92,10 +92,25 @@
                 },
                 "characters": {
                   "type": "array",
-                  "description": "character_ids of characters present in this panel. Used by the compiler to select reference images.",
+                  "description": "Characters present in this panel. Each entry is an object with a character_id and optional costume override.",
                   "items": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9_]+$"
+                    "type": "object",
+                    "required": [
+                      "character_id"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "character_id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9_]+$",
+                        "description": "character_id referencing a character in the project roster."
+                      },
+                      "costume": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9_]+$",
+                        "description": "Optional costume variant_id from the character's costumes.variants array. When absent, the character's default costume is used."
+                      }
+                    }
                   }
                 },
                 "environment": {

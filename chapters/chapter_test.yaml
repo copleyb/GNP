@@ -10,21 +10,22 @@ pages:
     panels:
       - position: 1
         characters:
-          - alyssa
+          - character_id: alyssa
+            costume: morning_routine
         environment: alyssa_apartment
         shot_type: wide
         mood: calm
         description: "Alyssa sits on the edge of her bed in a dimly lit apartment, dawn light peeking through venetian blinds."
       - position: 2
         characters:
-          - alyssa
+          - character_id: alyssa
         environment: alyssa_apartment
         shot_type: close_up
         mood: determined
         description: "Alyssa pulls on her technical jacket, the bright-blue tab on the collar catching the dim light."
       - position: 3
         characters:
-          - alyssa
+          - character_id: alyssa
         environment: alyssa_apartment
         shot_type: medium
         mood: focused
@@ -37,15 +38,15 @@ pages:
     panels:
       - position: 1
         characters:
-          - alyssa
+          - character_id: alyssa
         environment: city_exterior
         shot_type: wide
         mood: quiet
         description: "Alyssa walks through the damp city streets, her silhouette framed against brutalist architecture."
       - position: 2
         characters:
-          - alyssa
-          - hood
+          - character_id: alyssa
+          - character_id: hood
         environment: city_exterior
         shot_type: overhead
         mood: suspenseful

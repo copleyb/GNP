@@ -213,25 +213,106 @@ class ChapterPlanParser:
 
     # -- Character resolution ------------------------------------------------
 
-    def _resolve_character(self, character_id: str) -> dict[str, Any]:
+    def _resolve_character(self, character_id: str, costume_variant: str | None = None) -> dict[str, Any]:
         """
         Resolve a character ID to its full data for PanelSpec embedding.
 
-        Includes prompt_tokens, default costume, and all references.
-        The Prompt Compiler handles reference prioritisation; the Parser
-        includes all available references.
+        Composes the identity string (costume-agnostic identity + costume description),
+        filters references by costume variant, and embeds costume_variant for provenance.
+
+        Args:
+            character_id: The character to resolve.
+            costume_variant: Optional variant_id from the panel's costume field.
+                             If None, uses the character's default costume.
         """
         char_data = self._load_character(character_id)
+
+        # Resolve costume
+        costume_desc, resolved_variant = self._resolve_costume(char_data, costume_variant)
+
+        # Compose identity string: costume-agnostic identity + costume description
+        base_identity = char_data["prompt_tokens"]["identity"]
+        composed_identity = f"{base_identity}. Currently wearing: {costume_desc}"
+
+        # Filter references by costume variant
+        filtered_refs = self._filter_refs_by_costume(
+            char_data.get("references", []), resolved_variant
+        )
 
         return {
             "character_id": char_data["character_id"],
             "display_name": char_data["display_name"],
-            "prompt_tokens": char_data["prompt_tokens"],
-            "costume": {
-                "default": char_data["costumes"]["default"]["description"],
+            "prompt_tokens": {
+                **char_data["prompt_tokens"],
+                "identity": composed_identity,
             },
-            "references": char_data.get("references", []),
+            "costume_variant": resolved_variant,
+            "references": filtered_refs,
         }
+
+    def _resolve_costume(
+        self, char_data: dict[str, Any], variant_id: str | None
+    ) -> tuple[str, str]:
+        """
+        Resolve a costume variant to its description.
+
+        Returns (description, resolved_variant_id).
+        If variant_id is None, uses the default costume.
+        If variant_id doesn't match any variant, falls back to default with a warning.
+        """
+        costumes = char_data.get("costumes", {})
+        default_desc = costumes.get("default", {}).get("description", "")
+
+        if variant_id is None:
+            return default_desc, "default"
+
+        # Look for matching variant
+        for variant in costumes.get("variants", []):
+            if variant["variant_id"] == variant_id:
+                return variant["description"], variant_id
+
+        # Fallback: variant not found
+        import warnings
+        warnings.warn(
+            f"Character '{char_data['character_id']}': costume variant "
+            f"'{variant_id}' not found. Falling back to default costume."
+        )
+        return default_desc, "default"
+
+    def _filter_refs_by_costume(
+        self, references: list[dict[str, Any]], costume_variant: str
+    ) -> list[dict[str, Any]]:
+        """
+        Filter reference images by costume variant.
+
+        Each ref may have an optional 'costume' field (defaults to 'default').
+        Only refs matching the selected costume variant are returned.
+        If no refs match the variant, falls back to default-costume refs with a warning.
+        """
+        matching = [
+            ref for ref in references
+            if ref.get("costume", "default") == costume_variant
+        ]
+
+        if matching:
+            return matching
+
+        # Fallback: no refs match the variant, use default refs
+        if costume_variant != "default":
+            default_refs = [
+                ref for ref in references
+                if ref.get("costume", "default") == "default"
+            ]
+            if default_refs:
+                import warnings
+                warnings.warn(
+                    f"No reference images found for costume variant "
+                    f"'{costume_variant}'. Falling back to default costume references."
+                )
+                return default_refs
+
+        # Last resort: return all refs (no filtering possible)
+        return references
 
     # -- Environment resolution ----------------------------------------------
 
@@ -326,7 +407,13 @@ class ChapterPlanParser:
 
             for panel in page.get("panels", []):
                 pos = panel.get("position", "?")
-                for char_id in panel.get("characters", []):
+                for char_entry in panel.get("characters", []):
+                    if isinstance(char_entry, dict):
+                        char_id = char_entry["character_id"]
+                    elif isinstance(char_entry, str):
+                        char_id = char_entry
+                    else:
+                        continue
                     all_char_ids.add(char_id)
                 env_id = panel.get("environment", "")
                 if env_id:
@@ -458,12 +545,22 @@ class ChapterPlanParser:
                 f"no matching position in layout {layout_id}"
             )
 
-        # Resolve characters
+        # Resolve characters (now objects with character_id + optional costume)
         resolved_chars: list[dict[str, Any]] = []
-        for char_id in panel.get("characters", []):
+        for char_entry in panel.get("characters", []):
+            # Support both new object format and legacy string format
+            if isinstance(char_entry, dict):
+                char_id = char_entry["character_id"]
+                costume = char_entry.get("costume")
+            elif isinstance(char_entry, str):
+                char_id = char_entry
+                costume = None
+            else:
+                continue
+
             if char_id in resolved_characters:
                 resolved_chars.append(
-                    self._resolve_character(char_id)
+                    self._resolve_character(char_id, costume)
                 )
 
         # Resolve environment

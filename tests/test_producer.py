@@ -50,7 +50,7 @@ VALID_CHAPTER_PLAN = {
             "panels": [
                 {
                     "position": 1,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "wide",
                     "mood": "quiet anticipation",
@@ -58,7 +58,7 @@ VALID_CHAPTER_PLAN = {
                 },
                 {
                     "position": 2,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "medium",
                     "mood": "determined",
@@ -66,7 +66,7 @@ VALID_CHAPTER_PLAN = {
                 },
                 {
                     "position": 3,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "close_up",
                     "mood": "focused",
@@ -84,7 +84,7 @@ VALID_CHAPTER_PLAN = {
             "panels": [
                 {
                     "position": 1,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "city_exterior",
                     "shot_type": "wide",
                     "mood": "serene and purposeful",
@@ -92,7 +92,7 @@ VALID_CHAPTER_PLAN = {
                 },
                 {
                     "position": 2,
-                    "characters": ["hood"],
+                    "characters": [{"character_id": "hood"}],
                     "environment": "city_exterior",
                     "shot_type": "overhead",
                     "mood": "mysterious",
@@ -282,7 +282,7 @@ def test_unknown_character():
     """Test that the reference ID validator catches unknown character IDs."""
     producer = _get_producer()
     plan = json.loads(json.dumps(VALID_CHAPTER_PLAN))
-    plan["pages"][0]["panels"][0]["characters"] = ["unknown_char"]
+    plan["pages"][0]["panels"][0]["characters"] = [{"character_id": "unknown_char"}]
     try:
         producer._validate_referenced_ids(plan)
         raise AssertionError("Should have caught unknown character ID")
@@ -321,7 +321,7 @@ def test_panel_count_mismatch():
     # layout_02 expects 3 panels, add a 4th
     plan["pages"][0]["panels"].append({
         "position": 4,
-        "characters": ["alyssa"],
+        "characters": [{"character_id": "alyssa"}],
         "environment": "alyssa_apartment",
         "shot_type": "wide",
         "mood": "confused",

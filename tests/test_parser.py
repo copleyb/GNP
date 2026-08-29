@@ -51,7 +51,7 @@ VALID_CHAPTER = {
             "panels": [
                 {
                     "position": 1,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa", "costume": "morning_routine"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "wide",
                     "mood": "calm",
@@ -59,7 +59,7 @@ VALID_CHAPTER = {
                 },
                 {
                     "position": 2,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "close_up",
                     "mood": "determined",
@@ -67,7 +67,7 @@ VALID_CHAPTER = {
                 },
                 {
                     "position": 3,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "medium",
                     "mood": "focused",
@@ -85,7 +85,7 @@ VALID_CHAPTER = {
             "panels": [
                 {
                     "position": 1,
-                    "characters": ["alyssa"],
+                    "characters": [{"character_id": "alyssa"}],
                     "environment": "city_exterior",
                     "shot_type": "wide",
                     "mood": "quiet",
@@ -93,7 +93,7 @@ VALID_CHAPTER = {
                 },
                 {
                     "position": 2,
-                    "characters": ["alyssa", "hood"],
+                    "characters": [{"character_id": "alyssa"}, {"character_id": "hood"}],
                     "environment": "city_exterior",
                     "shot_type": "overhead",
                     "mood": "suspenseful",
@@ -185,7 +185,7 @@ class TestReferenceResolution:
     def test_unknown_character(self, parser, tmp_path):
         """Unknown character ID should fail reference resolution."""
         bad_plan = json.loads(json.dumps(VALID_CHAPTER))
-        bad_plan["pages"][0]["panels"][0]["characters"] = ["ghost"]
+        bad_plan["pages"][0]["panels"][0]["characters"] = [{"character_id": "ghost"}]
         path = tmp_path / "chapter_bad.yaml"
         with path.open("w") as f:
             yaml.dump(bad_plan, f)
@@ -215,7 +215,7 @@ class TestReferenceResolution:
     def test_multiple_unknown_references(self, parser, tmp_path):
         """Multiple unknown references should all be reported."""
         bad_plan = json.loads(json.dumps(VALID_CHAPTER))
-        bad_plan["pages"][0]["panels"][0]["characters"] = ["ghost", "phantom"]
+        bad_plan["pages"][0]["panels"][0]["characters"] = [{"character_id": "ghost"}, {"character_id": "phantom"}]
         bad_plan["pages"][0]["panels"][0]["environment"] = "mars_surface"
         path = tmp_path / "chapter_bad.yaml"
         with path.open("w") as f:
@@ -367,13 +367,32 @@ class TestPanelSpecAssembly:
     def test_character_resolution(self, parser, chapter_file, clean_output):
         """Characters should be fully resolved with prompt_tokens and references."""
         result = parser.parse(chapter_file)
-        # Panel 1 has Alyssa
-        chars = result.panels[0].panel_spec["characters"]
+        # Panel 2 has Alyssa with default costume (panel 1 uses morning_routine)
+        chars = result.panels[1].panel_spec["characters"]
         assert len(chars) == 1
         assert chars[0]["character_id"] == "alyssa"
         assert "identity" in chars[0]["prompt_tokens"]
-        assert "default" in chars[0]["costume"]
+        assert chars[0]["costume_variant"] == "default"
+        assert "Currently wearing" in chars[0]["prompt_tokens"]["identity"]
         assert len(chars[0]["references"]) >= 1
+
+    def test_costume_variant_resolution(self, parser, chapter_file, clean_output):
+        """Panel 1 specifies morning_routine costume for Alyssa — should resolve variant."""
+        result = parser.parse(chapter_file)
+        chars = result.panels[0].panel_spec["characters"]
+        assert chars[0]["costume_variant"] == "morning_routine"
+        # Identity should include the morning_routine description, not the default jacket
+        identity = chars[0]["prompt_tokens"]["identity"]
+        assert "Boxer shorts" in identity
+        assert "technical jacket" not in identity
+
+    def test_costume_default_when_unspecified(self, parser, chapter_file, clean_output):
+        """Panel 2 has no costume field — should use default costume."""
+        result = parser.parse(chapter_file)
+        chars = result.panels[1].panel_spec["characters"]
+        assert chars[0]["costume_variant"] == "default"
+        identity = chars[0]["prompt_tokens"]["identity"]
+        assert "technical jacket" in identity
 
     def test_multiple_characters(self, parser, chapter_file, clean_output):
         """Panel with multiple characters should resolve all of them."""

@@ -106,6 +106,10 @@ class ChapterPlanProducer:
                 "display_name": char_data["display_name"],
                 "physical_description": char_data["physical_description"],
                 "costume_default": char_data["costumes"]["default"]["description"],
+                "costume_variants": [
+                    {"variant_id": v["variant_id"], "description": v["description"]}
+                    for v in char_data.get("costumes", {}).get("variants", [])
+                ],
                 "prompt_tokens_identity": char_data["prompt_tokens"]["identity"],
                 "exclusions": char_data.get("prompt_tokens", {}).get("exclusions", []),
             })
@@ -186,6 +190,7 @@ Your output must be a JSON object conforming to the Chapter Plan schema.
 
 CRITICAL RULES:
 1. Only use character_ids that exist in the provided roster. Never invent characters.
+2. Characters are objects with a "character_id" field (required) and an optional "costume" field. The "costume" field references a variant_id from the character's costume variants. When a character is in their default outfit, omit the "costume" field. Use the "costume" field when a character is wearing a non-default outfit (e.g. morning_routine, sleepwear, formal).
 2. Only use environment_ids that exist in the provided roster. Never invent environments.
 3. Only use layout_ids that exist in the provided roster. Never invent layouts.
 4. THE NUMBER OF PANELS IN EACH PAGE'S "panels" ARRAY MUST EXACTLY EQUAL THE PANEL COUNT OF THE LAYOUT ASSIGNED TO THAT PAGE. This is the most important constraint. If a layout has 3 panels, the page using that layout MUST have exactly 3 entries in its panels array — not 2, not 4. Count the panels before finalising each page.
@@ -217,6 +222,9 @@ Your output will be validated against a strict schema. If any constraint is viol
                 f"{c['physical_description']['hair']} hair, {c['physical_description']['eyes']} eyes. "
                 f"Default costume: {c['costume_default']}"
             )
+            if c.get("costume_variants"):
+                for v in c["costume_variants"]:
+                    char_lines.append(f"    Variant '{v['variant_id']}': {v['description']}")
             if c.get("exclusions"):
                 char_lines.append(f"    Exclusions: {', '.join(c['exclusions'])}")
 
@@ -319,7 +327,15 @@ REMINDER: Before finalising each page, count the entries in its panels array and
                                         "position": {"type": "integer"},
                                         "characters": {
                                             "type": "array",
-                                            "items": {"type": "string"},
+                                            "items": {
+                                                "type": "object",
+                                                "additionalProperties": False,
+                                                "required": ["character_id"],
+                                                "properties": {
+                                                    "character_id": {"type": "string"},
+                                                    "costume": {"type": "string"},
+                                                },
+                                            },
                                         },
                                         "environment": {"type": "string"},
                                         "shot_type": {
@@ -521,12 +537,41 @@ REMINDER: Before finalising each page, count the entries in its panels array and
                         f"unknown environment '{env}'"
                     )
 
-                for char_id in panel.get("characters", []):
+                for char_entry in panel.get("characters", []):
+                    # Support both object and legacy string format
+                    if isinstance(char_entry, dict):
+                        char_id = char_entry["character_id"]
+                        costume = char_entry.get("costume")
+                    elif isinstance(char_entry, str):
+                        char_id = char_entry
+                        costume = None
+                    else:
+                        errors.append(
+                            f"Page {page.get('page_id', '?')}, panel {panel.get('position', '?')}: "
+                            f"invalid character entry (expected object or string)"
+                        )
+                        continue
+
                     if char_id not in valid_char_ids:
                         errors.append(
                             f"Page {page.get('page_id', '?')}, panel {panel.get('position', '?')}: "
                             f"unknown character '{char_id}'"
                         )
+                    # Validate costume variant if specified
+                    if costume:
+                        char_ctx = next(
+                            (c for c in context["characters"] if c["character_id"] == char_id),
+                            None
+                        )
+                        if char_ctx:
+                            valid_variants = {
+                                v["variant_id"] for v in char_ctx.get("costume_variants", [])
+                            }
+                            if costume not in valid_variants:
+                                errors.append(
+                                    f"Page {page.get('page_id', '?')}, panel {panel.get('position', '?')}: "
+                                    f"unknown costume variant '{costume}' for character '{char_id}'"
+                                )
 
         if errors:
             raise ValueError(

@@ -19,8 +19,10 @@ costumes:
   default:
     description: "Dirty, spattered white full-zip hoodie, worn with the hood up. Full, baggy charcoal cargo pants. Red/white 80's style hi-top sneakers with black 'swoosh' marking, dark fingerless gloves."
 
+# identity is costume-agnostic — describes the person, not the outfit.
+# The Parser composes the full identity string at parse time by appending the costume description.
 prompt_tokens:
-  identity: "Hood, a tall, lean street vigilante who conceals his identity with his hooded jacket and distinctive red hat, bandanna, and sunglasses combination. Typically wears a spattered white full-zip hoodie, charcoal cargo pants, and iconic 80's style sneakers."
+  identity: "Hood, a tall, lean street vigilante who conceals his identity with his hooded jacket and distinctive red hat, bandanna, and sunglasses combination"
   exclusions:
     - "never show eyes or face"
 
@@ -29,9 +31,11 @@ references:
     file: hood/ref_front.png
     purpose: front_neutral
     priority: 1
+    costume: default
     notes: "Front view, standing, thinking pose."
   - ref_id: ref_right
     file: hood/ref_right.png
     purpose: action
     priority: 2
+    costume: default
     notes: "Jogging action, viewed from right."

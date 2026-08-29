@@ -23,8 +23,10 @@ costumes:
       description: "Boxer shorts and a comfortable t-shirt, barefoot, no jewelry, nothing lurid."
       context: "Used in Alyssa's home when she's asleep or getting ready to start her day."
 
+# identity is costume-agnostic — describes the person, not the outfit.
+# The Parser composes the full identity string at parse time by appending the costume description.
 prompt_tokens:
-  identity: "Alyssa, a strikingly beautiful blonde woman in a distinctive technical off-white jacket, stone-colored pants, and hiking boots with a calm, centered personality and large, observant eyes"
+  identity: "Alyssa, a strikingly beautiful blonde woman with a calm, centered personality and large, observant eyes"
   exclusions:
     - "no alternate hair colors"
     - "no vacant or vapid expressions"
@@ -34,9 +36,11 @@ references:
     file: alyssa/ref_front.png
     purpose: front_neutral
     priority: 1
+    costume: default
     notes: "Full-body front view, neutral expression, default costume."
   - ref_id: ref_three_quarter
     file: alyssa/ref_three_quarter.png
     purpose: three_quarter
     priority: 2
+    costume: default
     notes: "Three-quarter view showing braid and thoughtful expression."

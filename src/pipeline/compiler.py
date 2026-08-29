@@ -252,11 +252,7 @@ class ScenePromptGenerator:
         for char in panel_spec.get("characters", []):
             tokens = char.get("prompt_tokens", {})
             identity = tokens.get("identity", "")
-            costume = char.get("costume", {}).get("default", "")
-            if costume:
-                parts.append(f"Character {char.get('display_name', '')}: {identity}. Currently wearing: {costume}")
-            else:
-                parts.append(f"Character {char.get('display_name', '')}: {identity}")
+            parts.append(f"Character {char.get('display_name', '')}: {identity}")
 
         # Continuity
         cont = panel_spec.get("continuity", {})
@@ -492,9 +488,10 @@ class PromptCompiler:
                     display = ref.get("display_name", char_id)
                     # Convert purpose enum to readable text
                     purpose_text = purpose.replace("_", " ")
+                    costume = ref.get("costume", "default")
                     lines.append(
                         f"Reference image {index}: {display}, "
-                        f"{purpose_text} reference."
+                        f"{purpose_text} reference, {costume} costume."
                     )
                     index += 1
             elif key.startswith("environment:"):
