@@ -107,7 +107,7 @@
                         "description": "character_id referencing a character in the project roster."
                       },
                       "costume": {
-                        "type": "string",
+                        "type": ["string", "null"],
                         "pattern": "^[a-z0-9_]+$",
                         "description": "Optional costume variant_id from the character's costumes.variants array. When absent, the character's default costume is used."
                       }
