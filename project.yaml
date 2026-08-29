@@ -16,7 +16,7 @@ output_dir: output/
 
 # External storage for reference images (PNGs are gitignored, synced via scripts/sync_assets.py).
 # Path is relative to project root, or absolute. Leave commented to use --source flag instead.
-# assets_source: ../graphic-novel-assets
+assets_source: ../GNP Reference
 
 notes: "A noir graphic novel set in a near-future city."
 
