@@ -260,6 +260,11 @@ class ScenePromptGenerator:
             parts.append(f"Time of day: {cont.get('time_of_day', '')}")
             parts.append(f"Location: {cont.get('location', '')}")
 
+        # Continuity narrative (per-panel storyboard entry from the scene)
+        continuity_narrative = panel_spec.get("continuity_narrative")
+        if continuity_narrative:
+            parts.append(f"\nContinuity narrative (visual storyboard for this panel): {continuity_narrative}")
+
         # Panel description (the core input)
         parts.append(f"\nPanel description: {panel_spec.get('description', '')}")
 

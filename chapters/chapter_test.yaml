@@ -9,6 +9,7 @@ pages:
       location: alyssa_apartment
     panels:
       - position: 1
+        scene_id: c01_s01
         characters:
           - character_id: alyssa
             costume: morning_routine
@@ -17,6 +18,7 @@ pages:
         mood: calm
         description: "Alyssa sits on the edge of her bed in a dimly lit apartment, dawn light peeking through venetian blinds."
       - position: 2
+        scene_id: c01_s01
         characters:
           - character_id: alyssa
         environment: alyssa_apartment
@@ -24,6 +26,7 @@ pages:
         mood: determined
         description: "Alyssa pulls on her technical jacket, the bright-blue tab on the collar catching the dim light."
       - position: 3
+        scene_id: c01_s01
         characters:
           - character_id: alyssa
         environment: alyssa_apartment
@@ -37,6 +40,7 @@ pages:
       location: city_exterior
     panels:
       - position: 1
+        scene_id: c01_s01
         characters:
           - character_id: alyssa
         environment: city_exterior
@@ -44,6 +48,7 @@ pages:
         mood: quiet
         description: "Alyssa walks through the damp city streets, her silhouette framed against brutalist architecture."
       - position: 2
+        scene_id: c01_s02
         characters:
           - character_id: alyssa
           - character_id: hood
@@ -51,3 +56,24 @@ pages:
         shot_type: overhead
         mood: suspenseful
         description: "From above, Hood watches Alyssa from a rooftop, hidden in the dense shadows of the city's skyline."
+
+scenes:
+  - scene_id: c01_s01
+    panels:
+      - page: "1_1"
+        position: 1
+        narrative: "Alyssa sitting on edge of bed, facing camera-left. Dim pre-dawn light through venetian blinds. Sleepwear (boxer shorts, t-shirt). Duvet pushed aside."
+      - page: "1_1"
+        position: 2
+        narrative: "Alyssa pulling on technical jacket, now standing. Same room, same lighting. Close-up on collar tab. Transition from sleepwear to dressed."
+      - page: "1_1"
+        position: 3
+        narrative: "Alyssa standing at window, back to camera. Same apartment. Light slightly stronger. Fully dressed. Looking out at dark cityscape."
+      - page: "1_2"
+        position: 1
+        narrative: "Alyssa walking through city streets, moving left to right. Different environment. Early morning light, damp pavement. Same costume."
+  - scene_id: c01_s02
+    panels:
+      - page: "1_2"
+        position: 2
+        narrative: "Hood watching Alyssa from rooftop above. Overhead shot. Different character, same environment. Dense shadows, urban grime."

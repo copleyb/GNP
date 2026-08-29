@@ -511,6 +511,7 @@ class ChapterPlanParser:
         style_embedded: dict[str, Any],
         resolved_characters: dict[str, dict],
         resolved_environments: dict[str, dict],
+        scenes_by_id: dict[str, dict[str, Any]],
         filename: str,
     ) -> dict[str, Any]:
         """
@@ -569,6 +570,18 @@ class ChapterPlanParser:
         if env_id and env_id in resolved_environments:
             resolved_env = self._resolve_environment(env_id)
 
+        # Resolve scene_id and continuity narrative
+        scene_id = panel.get("scene_id")
+        continuity_narrative: str | None = None
+
+        if scene_id and scene_id in scenes_by_id:
+            # Look up this panel's narrative entry in the scene
+            scene = scenes_by_id[scene_id]
+            for entry in scene.get("panels", []):
+                if entry.get("page") == page_id and entry.get("position") == position:
+                    continuity_narrative = entry.get("narrative")
+                    break
+
         return {
             "panel_id": panel_id,
             "chapter_id": chapter_id,
@@ -582,6 +595,8 @@ class ChapterPlanParser:
             "mood": panel["mood"],
             "description": panel["description"],
             "continuity": page.get("continuity", {}),
+            "scene_id": scene_id,
+            "continuity_narrative": continuity_narrative,
             "style": style_embedded,
             "panel_seed": self._generate_panel_seed(),
             "compiler_version": self.config.compiler_version,
@@ -643,6 +658,11 @@ class ChapterPlanParser:
         # Embed style at parse time
         style_embedded = self._embed_style()
 
+        # Index scenes by scene_id for quick lookup
+        scenes_by_id: dict[str, dict[str, Any]] = {}
+        for scene in chapter_plan.get("scenes", []):
+            scenes_by_id[scene["scene_id"]] = scene
+
         # Build PanelSpecs
         parsed_panels: list[ParsedPanel] = []
         warnings: list[str] = []
@@ -663,6 +683,7 @@ class ChapterPlanParser:
                     style_embedded=style_embedded,
                     resolved_characters=raw_chars,
                     resolved_environments=raw_envs,
+                    scenes_by_id=scenes_by_id,
                     filename=filename,
                 )
 

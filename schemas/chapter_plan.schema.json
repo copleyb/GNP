@@ -7,7 +7,8 @@
   "required": [
     "chapter_id",
     "title",
-    "pages"
+    "pages",
+    "scenes"
   ],
   "additionalProperties": false,
   "properties": {
@@ -139,6 +140,61 @@
                   "type": "string",
                   "minLength": 1,
                   "description": "Prose description of what is depicted in this panel. Primary creative input to the prompt compiler."
+                },
+                "scene_id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_]+$",
+                  "description": "Scene identifier. Groups this panel with others in the same continuity scene."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Continuity scenes. Each scene groups panels that share visual continuity. Every panel must belong to a scene.",
+      "items": {
+        "type": "object",
+        "required": [
+          "scene_id",
+          "panels"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "description": "Unique scene identifier within the chapter. E.g. c01_s01."
+          },
+          "panels": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Panel entries in this scene, each with a continuity narrative entry.",
+            "items": {
+              "type": "object",
+              "required": [
+                "page",
+                "position",
+                "narrative"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "page": {
+                  "type": "string",
+                  "description": "The page_id this panel belongs to."
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Panel position within the page."
+                },
+                "narrative": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Per-panel continuity storyboard entry. Describes visual state for continuity purposes."
                 }
               }
             }

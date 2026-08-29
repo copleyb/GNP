@@ -50,6 +50,7 @@ VALID_CHAPTER_PLAN = {
             "panels": [
                 {
                     "position": 1,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "wide",
@@ -58,6 +59,7 @@ VALID_CHAPTER_PLAN = {
                 },
                 {
                     "position": 2,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "medium",
@@ -66,6 +68,7 @@ VALID_CHAPTER_PLAN = {
                 },
                 {
                     "position": 3,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "close_up",
@@ -84,6 +87,7 @@ VALID_CHAPTER_PLAN = {
             "panels": [
                 {
                     "position": 1,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "city_exterior",
                     "shot_type": "wide",
@@ -92,12 +96,30 @@ VALID_CHAPTER_PLAN = {
                 },
                 {
                     "position": 2,
+                    "scene_id": "c01_s02",
                     "characters": [{"character_id": "hood"}],
                     "environment": "city_exterior",
                     "shot_type": "overhead",
                     "mood": "mysterious",
                     "description": "Hood watches Alyssa from above, blending into the shadows of a fire escape.",
                 },
+            ],
+        },
+    ],
+    "scenes": [
+        {
+            "scene_id": "c01_s01",
+            "panels": [
+                {"page": "1_1", "position": 1, "narrative": "Alyssa in bed, dawn light, sleepwear."},
+                {"page": "1_1", "position": 2, "narrative": "Alyssa pulling on jacket, same room."},
+                {"page": "1_1", "position": 3, "narrative": "Close-up of jacket clasps, same room."},
+                {"page": "1_2", "position": 1, "narrative": "Alyssa walking city streets, different environment."},
+            ],
+        },
+        {
+            "scene_id": "c01_s02",
+            "panels": [
+                {"page": "1_2", "position": 2, "narrative": "Hood watching from above, new scene."},
             ],
         },
     ],

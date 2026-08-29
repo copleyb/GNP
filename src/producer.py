@@ -208,6 +208,16 @@ PANEL COUNT REFERENCE — memorise this before writing any pages:
 - layout_02: 3 panels
 - layout_03: 7 panels
 
+SCENES AND CONTINUITY NARRATIVE:
+8. Assign each panel to a scene using the scene_id field. Panels sharing visual continuity (same location, same time frame, same characters in sequence) belong to the same scene. Scenes can span multiple pages or share a page.
+9. For each scene, write a continuity narrative — one entry per panel in that scene. Each narrative entry is a spatial and visual description of what the panel should depict for continuity purposes:
+   - Character state: position (left/center/right, foreground/background), pose, what they're doing
+   - Spatial relationships: where characters are relative to each other and the environment
+   - Change from previous panel: what physically moved or changed
+   - Environment continuity: lighting, time progression, weather
+   - The narrative is NOT a scene prompt — it's a storyboard entry that helps maintain visual consistency across panels in the same scene
+10. The scenes block is a top-level array alongside pages. Each scene has a scene_id and a panels array listing {page, position, narrative} entries.
+
 Your output will be validated against a strict schema. If any constraint is violated, the generation will fail."""
 
     def _build_user_prompt(self, synopsis: str, chapter_number: int) -> str:
@@ -287,7 +297,7 @@ REMINDER: Before finalising each page, count the entries in its panels array and
         return {
             "type": "object",
             "additionalProperties": False,
-            "required": ["chapter_id", "title", "notes", "pages"],
+            "required": ["chapter_id", "title", "notes", "pages", "scenes"],
             "properties": {
                 "chapter_id": {"type": "integer"},
                 "title": {"type": "string"},
@@ -322,6 +332,7 @@ REMINDER: Before finalising each page, count the entries in its panels array and
                                         "shot_type",
                                         "mood",
                                         "description",
+                                        "scene_id",
                                     ],
                                     "properties": {
                                         "position": {"type": "integer"},
@@ -348,6 +359,31 @@ REMINDER: Before finalising each page, count the entries in its panels array and
                                         },
                                         "mood": {"type": "string"},
                                         "description": {"type": "string"},
+                                        "scene_id": {"type": "string"},
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                "scenes": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["scene_id", "panels"],
+                        "properties": {
+                            "scene_id": {"type": "string"},
+                            "panels": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    "required": ["page", "position", "narrative"],
+                                    "properties": {
+                                        "page": {"type": "string"},
+                                        "position": {"type": "integer"},
+                                        "narrative": {"type": "string"},
                                     },
                                 },
                             },

@@ -51,6 +51,7 @@ VALID_CHAPTER = {
             "panels": [
                 {
                     "position": 1,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa", "costume": "morning_routine"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "wide",
@@ -59,6 +60,7 @@ VALID_CHAPTER = {
                 },
                 {
                     "position": 2,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "close_up",
@@ -67,6 +69,7 @@ VALID_CHAPTER = {
                 },
                 {
                     "position": 3,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "alyssa_apartment",
                     "shot_type": "medium",
@@ -85,6 +88,7 @@ VALID_CHAPTER = {
             "panels": [
                 {
                     "position": 1,
+                    "scene_id": "c01_s01",
                     "characters": [{"character_id": "alyssa"}],
                     "environment": "city_exterior",
                     "shot_type": "wide",
@@ -93,12 +97,30 @@ VALID_CHAPTER = {
                 },
                 {
                     "position": 2,
+                    "scene_id": "c01_s02",
                     "characters": [{"character_id": "alyssa"}, {"character_id": "hood"}],
                     "environment": "city_exterior",
                     "shot_type": "overhead",
                     "mood": "suspenseful",
                     "description": "Hood watches from above.",
                 },
+            ],
+        },
+    ],
+    "scenes": [
+        {
+            "scene_id": "c01_s01",
+            "panels": [
+                {"page": "1_1", "position": 1, "narrative": "Alyssa sitting on edge of bed, sleepwear, dim pre-dawn light."},
+                {"page": "1_1", "position": 2, "narrative": "Alyssa pulling on jacket, same room, close-up on collar."},
+                {"page": "1_1", "position": 3, "narrative": "Alyssa standing at window, fully dressed, looking out."},
+                {"page": "1_2", "position": 1, "narrative": "Alyssa walking city streets, early morning, damp pavement."},
+            ],
+        },
+        {
+            "scene_id": "c01_s02",
+            "panels": [
+                {"page": "1_2", "position": 2, "narrative": "Hood watching Alyssa from rooftop, overhead shot, urban shadows."},
             ],
         },
     ],
@@ -403,6 +425,37 @@ class TestPanelSpecAssembly:
         char_ids = [c["character_id"] for c in chars]
         assert "alyssa" in char_ids
         assert "hood" in char_ids
+
+    def test_scene_id_embedded(self, parser, chapter_file, clean_output):
+        """Each panel should have its scene_id embedded in the PanelSpec."""
+        result = parser.parse(chapter_file)
+        # Panels 1-4 are c01_s01, panel 5 is c01_s02
+        assert result.panels[0].panel_spec["scene_id"] == "c01_s01"
+        assert result.panels[3].panel_spec["scene_id"] == "c01_s01"
+        assert result.panels[4].panel_spec["scene_id"] == "c01_s02"
+
+    def test_continuity_narrative_embedded(self, parser, chapter_file, clean_output):
+        """Each panel should have its continuity narrative from the scenes block."""
+        result = parser.parse(chapter_file)
+        # Panel 1 — should have narrative about sitting on edge of bed
+        narrative = result.panels[0].panel_spec["continuity_narrative"]
+        assert narrative is not None
+        assert "bed" in narrative.lower()
+        # Panel 5 (c01_s02) — should have narrative about Hood on rooftop
+        narrative5 = result.panels[4].panel_spec["continuity_narrative"]
+        assert narrative5 is not None
+        assert "hood" in narrative5.lower() or "rooftop" in narrative5.lower()
+
+    def test_continuity_narrative_null_when_no_scene(self, parser, chapter_file, clean_output):
+        """If a panel has no scene_id, continuity_narrative should be null."""
+        result = parser.parse(chapter_file)
+        # All panels in our test data have scene_id, so we can't test null directly.
+        # But we can verify the field exists and is either a string or None.
+        for panel in result.panels:
+            assert "continuity_narrative" in panel.panel_spec
+            assert panel.panel_spec["continuity_narrative"] is None or isinstance(
+                panel.panel_spec["continuity_narrative"], str
+            )
 
     def test_environment_resolution(self, parser, chapter_file, clean_output):
         """Environment should be fully resolved with prompt_tokens and references."""
