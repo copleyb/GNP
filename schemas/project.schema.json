@@ -68,7 +68,12 @@
     "image_generation": {
       "type": "object",
       "description": "Image generation backend configuration. See DESIGN.md §10.",
-      "required": ["backend", "model", "quality", "reference_budget"],
+      "required": [
+        "backend",
+        "model",
+        "quality",
+        "reference_budget"
+      ],
       "additionalProperties": false,
       "properties": {
         "backend": {
@@ -81,7 +86,11 @@
         },
         "quality": {
           "type": "string",
-          "enum": ["low", "medium", "high"],
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
           "description": "Generation quality level. Maps to API quality parameter."
         },
         "reference_budget": {
@@ -92,12 +101,20 @@
         },
         "thinking": {
           "type": "string",
-          "enum": ["off", "low", "medium", "high"],
+          "enum": [
+            "off",
+            "low",
+            "medium",
+            "high"
+          ],
           "description": "Controls how much the model reasons about the prompt before rendering. Default: medium.",
           "default": "medium"
         },
         "seed": {
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "description": "int32 for loose reproducibility, or null for random each time. Default: null.",
           "default": null
         }
@@ -106,7 +123,10 @@
     "scene_prompt": {
       "type": "object",
       "description": "Scene Prompt Generator configuration. See DESIGN.md §9.",
-      "required": ["model", "context_profile"],
+      "required": [
+        "model",
+        "context_profile"
+      ],
       "additionalProperties": false,
       "properties": {
         "model": {
@@ -122,7 +142,11 @@
     "validation": {
       "type": "object",
       "description": "Validation pipeline configuration. See DESIGN.md §12.",
-      "required": ["threshold", "weights", "max_regeneration_attempts"],
+      "required": [
+        "threshold",
+        "weights",
+        "max_regeneration_attempts"
+      ],
       "additionalProperties": false,
       "properties": {
         "threshold": {
@@ -134,7 +158,10 @@
         "weights": {
           "type": "object",
           "description": "Weights for composite score calculation. Must sum to 1.0.",
-          "required": ["character_consistency", "style_adherence"],
+          "required": [
+            "character_consistency",
+            "style_adherence"
+          ],
           "additionalProperties": false,
           "properties": {
             "character_consistency": {
@@ -155,6 +182,10 @@
           "description": "Maximum automatic regeneration attempts before escalating to human review."
         }
       }
+    },
+    "assets_source": {
+      "type": "string",
+      "description": "Path to external reference image storage. Relative to project root or absolute. Used by scripts/sync_assets.py. Optional — can also be passed via --source flag."
     }
   }
 }
