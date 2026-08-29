@@ -1,0 +1,148 @@
+chapter_id: 1
+title: Night Searching
+notes: ''
+pages:
+- page_id: '1_1'
+  layout: layout_01
+  continuity:
+    time_of_day: night
+    location: city_bar_interior
+  panels:
+  - position: 1
+    characters:
+    - character_id: alyssa
+      costume: null
+    environment: city_bar_interior
+    shot_type: medium
+    mood: pensive
+    description: Alyssa sits at a dimly lit table in the bar, nursing a beer and deep
+      in thought, with the bar's kitsch decor in the background.
+    scene_id: scene_1
+  - position: 2
+    characters:
+    - character_id: alyssa
+      costume: null
+    environment: city_bar_interior
+    shot_type: close_up
+    mood: contemplative
+    description: Close-up of Alyssa's face, emphasizing her perceptive and kind eyes
+      as she takes a sip from her glass.
+    scene_id: scene_1
+- page_id: '1_2'
+  layout: layout_03
+  continuity:
+    time_of_day: night
+    location: city_exterior
+  panels:
+  - position: 1
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: wide
+    mood: tense
+    description: Hood stands at the entrance of a shadowy alley, peering in with urgency,
+      the city’s sparse neon lighting casting long shadows.
+    scene_id: scene_2
+  - position: 2
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: medium
+    mood: frenzied
+    description: Hood frantically searches through piles of trash bags, his movements
+      quick and desperate.
+    scene_id: scene_2
+  - position: 3
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: dutch_angle
+    mood: anxious
+    description: A skewed view captures Hood bending low, his hands digging through
+      refuse as the shadows seem to close in.
+    scene_id: scene_2
+  - position: 4
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: close_up
+    mood: frustration
+    description: Close-up of Hood's gloved hands clutching empty pockets, his desperation
+      mounting.
+    scene_id: scene_2
+  - position: 5
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: low_angle
+    mood: determined
+    description: From below, Hood's silhouette looms as he stands, resolve hardening,
+      eyes concealed under the hoodie’s shadow.
+    scene_id: scene_2
+  - position: 6
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: overhead
+    mood: isolated
+    description: Overhead shot of Hood alone amidst the towering cityscape, street
+      lights glimmering on damp asphalt.
+    scene_id: scene_2
+  - position: 7
+    characters:
+    - character_id: hood
+      costume: roadwork
+    environment: city_exterior
+    shot_type: extreme_close_up
+    mood: desperate
+    description: Extreme close-up of Hood's clenched fist gripping the wallet he finally
+      pulls from debris, relief etched in his unseen features.
+    scene_id: scene_2
+scenes:
+- scene_id: scene_1
+  panels:
+  - page: '1_1'
+    position: 1
+    narrative: Alyssa sits alone at a small, dark-wooden table in the bar's dim interior,
+      holding a beer glass with both hands, deep in thought amidst the dive's worn
+      decor.
+  - page: '1_1'
+    position: 2
+    narrative: Focus on Alyssa’s face, eyes slightly lowered, reflecting internal
+      contemplation, as she sips her beer.
+- scene_id: scene_2
+  panels:
+  - page: '1_2'
+    position: 1
+    narrative: Hood stands at the alleyway's entrance, looking into its dark depths,
+      silhouette edged with contrasting neon light reflections from the city exterior.
+  - page: '1_2'
+    position: 2
+    narrative: Hood moves deeper into the alley, shifting trash bags aside with urgency,
+      his pose hunched and searching.
+  - page: '1_2'
+    position: 3
+    narrative: The scene shifts at a dutch angle, showing Hood in dynamic motion as
+      he bends to sift through piled debris, the alley's darkness creating tension.
+  - page: '1_2'
+    position: 4
+    narrative: A close focus on Hood's hands as they withdraw empty from his pockets,
+      tension and frustration palpable.
+  - page: '1_2'
+    position: 5
+    narrative: Low angle captures Hood’s determination as he rises, his hoodie casting
+      his face into shadow, yet revealing resolve in his form.
+  - page: '1_2'
+    position: 6
+    narrative: Overhead view shows Hood isolated in the city's urban canyon, street
+      lamps creating pools of light around him.
+  - page: '1_2'
+    position: 7
+    narrative: Extreme close-up focuses on Hood's hand gripping a wallet, finally
+      found amidst rubbish, lighting subtly showing relief.
