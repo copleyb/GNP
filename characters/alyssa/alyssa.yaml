@@ -44,3 +44,9 @@ references:
     priority: 2
     costume: default
     notes: "Three-quarter view showing braid and thoughtful expression."
+  - ref_id: alyssa_morning_routine
+    file: alyssa/alyssa_morning_routine.png
+    purpose: costume
+    priority: 3
+    costume: morning_routine
+    notes: "Alyssa in her boxer shorts and a t-shirt, about to get ready for her day."

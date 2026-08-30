@@ -1,7 +1,14 @@
 version: '1.0'
-generated_at: '2026-08-29T21:49:14Z'
+generated_at: '2026-08-29T23:44:46Z'
 project_id: iron-city
 assets:
+- path: characters/alyssa/alyssa_morning_routine.png
+  sha256: ff0ea21762a53e90354ab4b25bbd8c2bca199d0e5db9cb6eecd6b6b074ef4641
+  size_bytes: 2472657
+  asset_type: character
+  entity_id: alyssa
+  ref_id: alyssa_morning_routine
+  purpose: costume
 - path: characters/alyssa/ref_front.png
   sha256: a580646aab11805a04880911624dc7df8b2035db0b433ae54279613f9933a388
   size_bytes: 991482
