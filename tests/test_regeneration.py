@@ -39,22 +39,40 @@ def config():
     return load_config(str(PROJECT_ROOT))
 
 
+def _find_panelspecs() -> list[Path]:
+    """Find all .panelspec.json files in the output directory."""
+    output_dir = PROJECT_ROOT / "output"
+    if not output_dir.exists():
+        return []
+    return sorted(output_dir.glob("*.panelspec.json"))
+
+
+def _find_multi_char_spec() -> Path | None:
+    """Find a PanelSpec with more than one character, if one exists."""
+    for path in _find_panelspecs():
+        with path.open() as f:
+            spec = json.load(f)
+        if len(spec.get("characters", [])) >= 2:
+            return path
+    return None
+
+
 @pytest.fixture
 def panel_spec():
-    """Load a real PanelSpec from the output directory."""
-    path = PROJECT_ROOT / "output" / "c01_pg1_l02_pn01.panelspec.json"
-    if not path.exists():
-        pytest.skip("PanelSpec not found — run the Parser first")
-    with path.open() as f:
+    """Load any available PanelSpec from the output directory."""
+    specs = _find_panelspecs()
+    if not specs:
+        pytest.skip("No PanelSpecs in output/ — run the Parser first")
+    with specs[0].open() as f:
         return json.load(f)
 
 
 @pytest.fixture
 def multi_char_spec():
-    """Load the PanelSpec with two characters (alyssa + hood)."""
-    path = PROJECT_ROOT / "output" / "c01_pg2_l01_pn02.panelspec.json"
-    if not path.exists():
-        pytest.skip("PanelSpec not found — run the Parser first")
+    """Load a PanelSpec with multiple characters, if available."""
+    path = _find_multi_char_spec()
+    if path is None:
+        pytest.skip("No multi-character PanelSpec found — need a panel with 2+ characters")
     with path.open() as f:
         return json.load(f)
 

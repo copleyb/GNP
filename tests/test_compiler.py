@@ -43,34 +43,44 @@ def compiler(config):
     return PromptCompiler(config)
 
 
+def _find_panelspecs() -> list:
+    """Find all .panelspec.json files in the output directory."""
+    output_dir = PROJECT_ROOT / "output"
+    if not output_dir.exists():
+        return []
+    return sorted(output_dir.glob("*.panelspec.json"))
+
+
 @pytest.fixture
 def panel_spec():
-    """Load a real PanelSpec from the output directory."""
-    path = PROJECT_ROOT / "output" / "c01_pg1_l02_pn01.panelspec.json"
-    if not path.exists():
-        pytest.skip("PanelSpec not found — run the Parser first")
-    with path.open() as f:
+    """Load any available PanelSpec from the output directory."""
+    specs = _find_panelspecs()
+    if not specs:
+        pytest.skip("No PanelSpecs in output/ — run the Parser first")
+    with specs[0].open() as f:
         return json.load(f)
 
 
 @pytest.fixture
 def multi_char_spec():
-    """Load the PanelSpec with two characters (alyssa + hood)."""
-    path = PROJECT_ROOT / "output" / "c01_pg2_l01_pn02.panelspec.json"
-    if not path.exists():
-        pytest.skip("PanelSpec not found — run the Parser first")
-    with path.open() as f:
-        return json.load(f)
+    """Load a PanelSpec with multiple characters, if available."""
+    for path in _find_panelspecs():
+        with path.open() as f:
+            spec = json.load(f)
+        if len(spec.get("characters", [])) >= 2:
+            return spec
+    pytest.skip("No multi-character PanelSpec found")
 
 
 @pytest.fixture
 def no_char_spec():
-    """Load the PanelSpec with no characters (environment only)."""
-    path = PROJECT_ROOT / "output" / "c01_pg3_l03_pn02.panelspec.json"
-    if not path.exists():
-        pytest.skip("PanelSpec not found — run the Parser first")
-    with path.open() as f:
-        return json.load(f)
+    """Load a PanelSpec with no characters (environment only), if available."""
+    for path in _find_panelspecs():
+        with path.open() as f:
+            spec = json.load(f)
+        if len(spec.get("characters", [])) == 0:
+            return spec
+    pytest.skip("No zero-character PanelSpec found")
 
 
 # A mock LLM callable that returns a fixed scene prompt
