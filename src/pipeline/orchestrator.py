@@ -30,6 +30,7 @@ from .compiler import PromptCompiler, GenerationRequest
 from .compiler import ScenePromptError
 from .backend import ImageGenerationBackend, GenerationResult
 from .provenance import ProvenanceStore
+from .wardrobe import Wardrobe
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,7 @@ class Orchestrator:
         self.backend = ImageGenerationBackend(project_root=config.project_root)
         self.provenance = ProvenanceStore(config.output_dir)
         self.project_root = config.project_root
+        self.wardrobe = Wardrobe(config.characters_dir)
 
     def generate_panel(
         self,
@@ -282,19 +284,22 @@ class Orchestrator:
         if "description" in overrides:
             patched["description"] = overrides["description"]
         if "costume" in overrides:
-            # Patch costume on each character that has a matching variant
+            # Re-resolve each character from source YAML with the new costume
+            # variant. The PanelSpec only carries refs/identity for the
+            # costume that was active at parse time, so we must go back to
+            # the character YAML to get the new variant's data.
             costume = overrides["costume"]
             patched_chars = []
             for char in panel_spec.get("characters", []):
-                patched_char = dict(char)
-                # Check if this costume variant exists for the character
-                # The PanelSpec stores refs with costume tags — we filter them
-                costume_refs = [
-                    ref for ref in char.get("references", [])
-                    if ref.get("costume") == costume
-                ]
-                if costume_refs:
-                    patched_char["references"] = costume_refs
+                char_id = char.get("character_id")
+                if char_id:
+                    patched_char = self.wardrobe.resolve_character_in_panel(
+                        character_id=char_id,
+                        costume_variant=costume,
+                        panel_references=char.get("references", []),
+                    )
+                else:
+                    patched_char = dict(char)
                 patched_chars.append(patched_char)
             patched["characters"] = patched_chars
 
