@@ -5,7 +5,7 @@ Provides subcommands for the full production workflow:
   produce   — Generate a Chapter Plan from a synopsis (GPT-4o)
   parse     — Parse a Chapter Plan into PanelSpecs (4-stage validation)
   generate  — Generate panel images (single panel, page, or full chapter)
-  regenerate— Regenerate a panel with optional textual feedback
+  regenerate— Regenerate a panel (replay/reroll/revise/regenerate)
   list      — List panels, provenance records, or project status
   status    — Show generation status for a chapter
   validate  — Validate generated panels against project standards (GPT-4o vision)
@@ -307,10 +307,28 @@ def _generate_chapter(
 # -- Command: regenerate -----------------------------------------------------
 
 def cmd_regenerate(args: argparse.Namespace) -> int:
-    """Regenerate a panel with optional user feedback."""
+    """Regenerate a panel using the four-category system.
+
+    Category is inferred from provided flags:
+    - No flags → replay (exact replay from provenance)
+    - --seed/--quality/--thinking → reroll (backend overrides)
+    - --feedback/--fresh-prompt/--scene-prompt → revise (new scene prompt)
+    - --costume/--shot-type/--mood/--description → regenerate (PanelSpec patches)
+    """
+    # Validate three-way mutex on scene-prompt flags
+    scene_prompt_flags = [
+        ("--feedback", getattr(args, "feedback", None)),
+        ("--fresh-prompt", getattr(args, "fresh_prompt", False)),
+        ("--scene-prompt", getattr(args, "scene_prompt", None)),
+    ]
+    active = [name for name, val in scene_prompt_flags if val]
+    if len(active) > 1:
+        print(f"Error: {', '.join(active)} are mutually exclusive. Pick at most one.")
+        return 1
+
     config = load_config(args.project)
 
-    # Find the panel — try parsing the chapter first
+    # Find the panel by parsing the chapter
     parser = ChapterPlanParser(config)
     try:
         parse_result = parser.parse_chapter(args.chapter)
@@ -335,28 +353,49 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
     if idx < len(page_panels) - 1:
         surrounding.append(f"Next panel: {page_panels[idx+1].panel_spec['description']}")
 
+    # Build overrides dict from CLI args
+    overrides: dict[str, Any] = {}
+    if getattr(args, "seed", None) is not None:
+        overrides["seed"] = args.seed
+    if getattr(args, "quality", None) is not None:
+        overrides["quality"] = args.quality
+    if getattr(args, "thinking", None) is not None:
+        overrides["thinking"] = args.thinking
+    if getattr(args, "feedback", None) is not None:
+        overrides["feedback"] = args.feedback
+    if getattr(args, "fresh_prompt", False):
+        overrides["fresh_prompt"] = True
+    if getattr(args, "scene_prompt", None) is not None:
+        overrides["scene_prompt"] = args.scene_prompt
+    if getattr(args, "costume", None) is not None:
+        overrides["costume"] = args.costume
+    if getattr(args, "shot_type", None) is not None:
+        overrides["shot_type"] = args.shot_type
+    if getattr(args, "mood", None) is not None:
+        overrides["mood"] = args.mood
+    if getattr(args, "description", None) is not None:
+        overrides["description"] = args.description
+
     orch = Orchestrator(config)
 
-    # Determine mode
-    if args.feedback:
-        mode = "full (with director's note)"
-    elif args.full_pipeline:
-        mode = "full (forced)"
-    else:
-        mode = "backend-only (reuse last scene prompt)"
+    # Infer category for display
+    category = Orchestrator._infer_category(overrides)
 
     print(f"Regenerating {_fmt_panel_id(args.panel)}...")
-    print(f"  Mode: {mode}")
-    if args.feedback:
-        print(f"  Feedback: \"{args.feedback}\"")
+    print(f"  Category: {category}")
+    if overrides:
+        for k, v in overrides.items():
+            if v is not True:
+                print(f"  {k}: {v}")
+            else:
+                print(f"  {k}: (flag)")
     print()
 
     t0 = time.time()
     result = orch.regenerate_panel(
         panel_spec,
-        user_feedback=args.feedback,
+        overrides=overrides,
         surrounding_descriptions=surrounding,
-        full_pipeline=args.full_pipeline,
     )
     elapsed = time.time() - t0
 
@@ -751,17 +790,45 @@ examples:
     # -- regenerate --
     p_regen = subparsers.add_parser(
         "regenerate",
-        help="Regenerate a panel with optional feedback",
+        help="Regenerate a panel (category inferred from flags)",
+        description=(
+            "Regenerate a panel using the four-category system.\n"
+            "  No flags: replay (exact same request from provenance)\n"
+            "  --seed/--quality/--thinking: reroll (backend overrides)\n"
+            "  --feedback/--fresh-prompt/--scene-prompt: revise (new scene prompt)\n"
+            "  --costume/--shot-type/--mood/--description: regenerate (PanelSpec patches)\n"
+            "All non-conflicting flags compose freely."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p_regen.add_argument("--chapter", type=int, required=True, help="Chapter number")
     p_regen.add_argument("--panel", required=True, help="Panel ID to regenerate")
-    p_regen.add_argument("--feedback", help="Textual feedback for the regeneration (Director's Note)")
-    p_regen.add_argument(
-        "--full-pipeline",
-        action="store_true",
-        help="Force full pipeline re-run (new scene prompt + image). "
-             "Default: backend-only if no feedback, full if feedback provided.",
-    )
+
+    # Backend override flags (reroll)
+    p_regen.add_argument("--seed", type=int, help="Override the seed (reroll)")
+    p_regen.add_argument("--quality", choices=["low", "medium", "high", "auto"],
+                         help="Override quality (reroll)")
+    p_regen.add_argument("--thinking", choices=["off", "low", "medium", "high"],
+                         help="Override thinking level (reroll)")
+
+    # Scene prompt flags (revise) — three-way mutex
+    p_regen.add_argument("--feedback", metavar="TEXT",
+                         help="Director's note for preservation mode (revise)")
+    p_regen.add_argument("--fresh-prompt", action="store_true",
+                         help="Cold-start scene prompt (revise)")
+    p_regen.add_argument("--scene-prompt", metavar="TEXT",
+                         help="Direct scene prompt text, no LLM call (revise)")
+
+    # PanelSpec field overrides (regenerate)
+    p_regen.add_argument("--costume", metavar="VARIANT",
+                         help="Override costume variant (regenerate)")
+    p_regen.add_argument("--shot-type", metavar="TYPE",
+                         help="Override shot type (regenerate)")
+    p_regen.add_argument("--mood", metavar="MOOD",
+                         help="Override mood (regenerate)")
+    p_regen.add_argument("--description", metavar="TEXT",
+                         help="Override panel description (regenerate)")
+
     p_regen.set_defaults(func=cmd_regenerate)
 
     # -- list --

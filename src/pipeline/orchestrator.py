@@ -19,7 +19,7 @@ import hashlib
 import io
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -215,74 +215,387 @@ class Orchestrator:
 
         return PageResult(page_id=page_id, panels=results)
 
+    # -- Regeneration category constants ------------------------------------
+
+    _REGEN_CATEGORIES = ("replay", "reroll", "revise", "regenerate")
+
+    _BACKEND_OVERRIDE_KEYS = frozenset({"seed", "quality", "thinking"})
+    _SCENE_PROMPT_KEYS = frozenset({"feedback", "fresh_prompt", "scene_prompt"})
+    _PANELSPEC_OVERRIDE_KEYS = frozenset({"costume", "shot_type", "mood", "description"})
+
+    # -- Category inference -----------------------------------------------
+
+    @staticmethod
+    def _infer_category(overrides: dict[str, Any]) -> str:
+        """
+        Infer the regeneration category from the provided overrides.
+
+        Priority: deepest layer of change wins.
+        PanelSpec overrides > scene prompt flags > backend overrides > no flags.
+        """
+        if any(k in overrides for k in Orchestrator._PANELSPEC_OVERRIDE_KEYS):
+            return "regenerate"
+        if any(k in overrides for k in Orchestrator._SCENE_PROMPT_KEYS):
+            return "revise"
+        if any(k in overrides for k in Orchestrator._BACKEND_OVERRIDE_KEYS):
+            return "reroll"
+        return "replay"
+
+    # -- PanelSpec patching (non-destructive) ------------------------------
+
+    @staticmethod
+    def _apply_panelspec_patches(
+        panel_spec: dict[str, Any],
+        overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Apply PanelSpec field overrides in-memory (non-destructive).
+
+        Returns a new dict with the patches applied. The original
+        PanelSpec on disk is never modified.
+
+        Supported fields: costume, shot_type, mood, description.
+        """
+        patched = dict(panel_spec)
+
+        if "shot_type" in overrides:
+            patched["shot_type"] = overrides["shot_type"]
+        if "mood" in overrides:
+            patched["mood"] = overrides["mood"]
+        if "description" in overrides:
+            patched["description"] = overrides["description"]
+        if "costume" in overrides:
+            # Patch costume on each character that has a matching variant
+            costume = overrides["costume"]
+            patched_chars = []
+            for char in dict(panel_spec.get("characters", [])):
+                patched_char = dict(char)
+                # Check if this costume variant exists for the character
+                # The PanelSpec stores refs with costume tags — we filter them
+                costume_refs = [
+                    ref for ref in char.get("references", [])
+                    if ref.get("costume") == costume
+                ]
+                if costume_refs:
+                    patched_char["references"] = costume_refs
+                patched_chars.append(patched_char)
+            patched["characters"] = patched_chars
+
+        return patched
+
+    # -- Structured diff computation ---------------------------------------
+
+    @staticmethod
+    def _compute_diff(
+        panel_spec: dict[str, Any],
+        overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Compute a structured diff from the panel spec and overrides.
+
+        For PanelSpec field overrides: {"field": {"from": old, "to": new}}
+        For feedback: {"feedback": "user instruction text"}
+        Composes both when present.
+        """
+        diff: dict[str, Any] = {}
+
+        for key in ("shot_type", "mood", "description"):
+            if key in overrides:
+                diff[key] = {
+                    "from": panel_spec.get(key, ""),
+                    "to": overrides[key],
+                }
+
+        if "costume" in overrides:
+            diff["costume"] = {
+                "from": "default",
+                "to": overrides["costume"],
+            }
+
+        if "feedback" in overrides:
+            diff["feedback"] = overrides["feedback"]
+
+        return diff
+
+    # -- Scene prompt mode determination -----------------------------------
+
+    @staticmethod
+    def _determine_scene_prompt_mode(overrides: dict[str, Any]) -> str:
+        """
+        Determine the scene prompt mode from overrides.
+
+        Returns: "direct" | "cold_start" | "preservation_with_feedback" |
+                 "preservation" | "reused"
+        """
+        if "scene_prompt" in overrides:
+            return "direct"
+        if "fresh_prompt" in overrides:
+            return "cold_start"
+        if "feedback" in overrides:
+            return "preservation_with_feedback"
+        return "preservation"  # default for revise/regenerate without scene-prompt flags
+
+    # -- Regeneration (main entry point) ----------------------------------
+
     def regenerate_panel(
         self,
         panel_spec: dict[str, Any],
-        user_feedback: str | None = None,
+        overrides: dict[str, Any] | None = None,
         surrounding_descriptions: list[str] | None = None,
-        full_pipeline: bool = False,
         call_llm: Any = None,
     ) -> PanelResult:
         """
-        Regenerate a single panel with optional user feedback.
+        Regenerate a single panel using the four-category system.
+
+        The category (replay, reroll, revise, regenerate) is inferred
+        from the provided overrides. See DESIGN.md §13 for details.
 
         Args:
             panel_spec: The PanelSpec dict.
-            user_feedback: Optional human instruction for the regeneration
-                           (e.g. "make the lighting warmer", "push character left").
+            overrides: Dict of regeneration parameters. Any combination of:
+                Backend: seed (int), quality (str), thinking (str)
+                Scene prompt: feedback (str), fresh_prompt (bool),
+                              scene_prompt (str)
+                PanelSpec: costume (str), shot_type (str), mood (str),
+                           description (str)
             surrounding_descriptions: Adjacent panel descriptions for context.
-            full_pipeline: If True, re-run the full pipeline (scene prompt + image).
-                           If False, only re-run the image generation with the
-                           existing prompt (faster, for minor adjustments).
-                           Default: False (backend-only).
             call_llm: Optional mock for the Scene Prompt Generator.
 
         Returns:
             PanelResult with output path and metadata.
-
-        Per DESIGN.md §11: The first regeneration attempt re-runs only the
-        Backend. Subsequent attempts re-run the full pipeline. The
-            full_pipeline flag allows manual override of this behavior.
         """
-        if full_pipeline or user_feedback:
-            # User feedback requires a new scene prompt — force full pipeline
-            return self.generate_panel(
-                panel_spec,
-                surrounding_descriptions=surrounding_descriptions,
-                user_feedback=user_feedback,
-                call_llm=call_llm,
-            )
-        else:
-            # Backend-only regeneration: recompile without LLM call,
-            # then send to backend. We still need the compiled prompt.
-            # For backend-only, we reuse the existing prompt by compiling
-            # with a mock that returns the last scene prompt.
-            panel_id = panel_spec["panel_id"]
+        overrides = overrides or {}
+        category = self._infer_category(overrides)
+        panel_id = panel_spec["panel_id"]
 
-            # Check if we have a prior scene prompt in provenance
-            records = self.provenance.read_all(panel_id)
-            prior_prompt = None
-            if records:
-                last = records[-1]
-                if "scene_prompt" in last and "output" in last["scene_prompt"]:
-                    prior_prompt = last["scene_prompt"]["output"]
+        # Get the latest provenance record (for prior prompt, seed, etc.)
+        latest_record = self.provenance.get_latest_record(panel_id)
 
-            if prior_prompt:
-                # Use a mock that returns the prior scene prompt
-                def reuse_mock(model, system_prompt, user_prompt):
-                    return prior_prompt
-                return self.generate_panel(
-                    panel_spec,
-                    surrounding_descriptions=surrounding_descriptions,
-                    call_llm=reuse_mock,
+        # Determine scene prompt mode (for later provenance recording)
+        scene_prompt_mode = "reused"  # default for replay/reroll
+        if category in ("revise", "regenerate"):
+            scene_prompt_mode = self._determine_scene_prompt_mode(overrides)
+
+        # -- Build the GenerationRequest based on category --
+
+        if category in ("replay", "reroll"):
+            # Backend-only: use stored prompt from provenance
+            if latest_record is None or "generation_request" not in latest_record:
+                # No prior record — fall back to full pipeline (cold start)
+                logger.warning(
+                    "No prior Generation Record for %s — falling back to cold start",
+                    panel_id,
                 )
-            else:
-                # No prior prompt — fall back to full pipeline
-                return self.generate_panel(
+                category = "revise"
+                scene_prompt_mode = "cold_start"
+                gen_request = self.compiler.compile(
                     panel_spec,
                     surrounding_descriptions=surrounding_descriptions,
                     call_llm=call_llm,
                 )
+            else:
+                stored_gr = latest_record["generation_request"]
+                gen_request = self.compiler.compile_for_replay(
+                    panel_spec,
+                    stored_prompt=stored_gr["prompt"],
+                    seed=overrides.get("seed"),
+                    quality=overrides.get("quality"),
+                    thinking=overrides.get("thinking"),
+                )
+
+        else:
+            # Revise or regenerate: run the compiler (possibly with preservation)
+            working_spec = panel_spec
+            if category == "regenerate":
+                working_spec = self._apply_panelspec_patches(panel_spec, overrides)
+
+            preservation_context = None
+            user_feedback = None
+
+            if scene_prompt_mode == "direct":
+                # --scene-prompt "text" → skip LLM, use provided text
+                scene_prompt_text = overrides["scene_prompt"]
+
+                def direct_mock(model, system_prompt, user_prompt):
+                    return scene_prompt_text
+                call_llm_for_gen = direct_mock
+            elif scene_prompt_mode == "cold_start":
+                # --fresh-prompt → normal compile (no preservation)
+                call_llm_for_gen = call_llm
+            elif scene_prompt_mode in ("preservation", "preservation_with_feedback"):
+                # Preservation mode: prior prompt + structured diff
+                if latest_record and "scene_prompt" in latest_record:
+                    prior_prompt = latest_record["scene_prompt"].get("output", "")
+                else:
+                    # Cold start exception: no prior record
+                    logger.warning(
+                        "No prior scene prompt for %s — using cold start",
+                        panel_id,
+                    )
+                    scene_prompt_mode = "cold_start"
+                    call_llm_for_gen = call_llm
+                    prior_prompt = None
+
+                if prior_prompt:
+                    diff = self._compute_diff(panel_spec, overrides)
+                    preservation_context = {
+                        "prior_prompt": prior_prompt,
+                        "change_summary": diff,
+                    }
+                    if scene_prompt_mode == "preservation_with_feedback":
+                        user_feedback = overrides.get("feedback")
+                        preservation_context["feedback"] = user_feedback
+                    call_llm_for_gen = call_llm
+                else:
+                    call_llm_for_gen = call_llm
+            else:
+                call_llm_for_gen = call_llm
+
+            gen_request = self.compiler.compile(
+                working_spec,
+                surrounding_descriptions=surrounding_descriptions,
+                user_feedback=user_feedback,
+                call_llm=call_llm_for_gen,
+                preservation_context=preservation_context,
+            )
+
+        # -- Apply backend overrides for revise/regenerate (config defaults) --
+        if category in ("revise", "regenerate"):
+            patch_kwargs = {}
+            if "seed" in overrides:
+                patch_kwargs["seed"] = overrides["seed"]
+            if "quality" in overrides:
+                patch_kwargs["quality"] = overrides["quality"]
+            if "thinking" in overrides:
+                patch_kwargs["thinking"] = overrides["thinking"]
+            if patch_kwargs:
+                gen_request = replace(gen_request, **patch_kwargs)
+
+        # -- Generate the image --
+        result = self.backend.generate(gen_request)
+
+        if not result.succeeded:
+            return PanelResult(
+                panel_id=panel_id,
+                status="failure",
+                output_path=None,
+                error=result.error,
+            )
+
+        # -- Post-process --
+        geo = panel_spec["panel_geometry"]
+        target_w = int(geo["width_px"] * PIPELINE_SCALE_FACTOR)
+        target_h = int(geo["height_px"] * PIPELINE_SCALE_FACTOR)
+
+        input_dimensions, output_dimensions = self._post_process(
+            result.output_bytes,
+            target_w,
+            target_h,
+            panel_id,
+            None,  # attempt number determined below
+        )
+
+        # -- Write output --
+        attempt = self._next_attempt_number(panel_id)
+        output_path = self._write_output(
+            result.output_bytes if not output_dimensions else None,
+            panel_id,
+            attempt,
+            target_w,
+            target_h,
+        )
+
+        # -- Record provenance with regeneration metadata --
+        self._record_provenance(
+            panel_id, attempt, gen_request, result,
+            input_dimensions, output_dimensions,
+            regeneration_category=category,
+            overrides=overrides,
+            scene_prompt_mode=scene_prompt_mode,
+            preservation_context=preservation_context,
+        )
+
+        return PanelResult(
+            panel_id=panel_id,
+            status="success",
+            output_path=str(output_path),
+            api_response_id=result.api_response_id,
+            post_processed=output_dimensions is not None,
+            input_dimensions=input_dimensions,
+            output_dimensions=output_dimensions,
+        )
+
+    # -- Automatic regeneration (validation-triggered) ----------------------
+
+    def auto_regenerate_panel(
+        self,
+        panel_spec: dict[str, Any],
+        max_attempts: int = 3,
+        surrounding_descriptions: list[str] | None = None,
+        call_llm: Any = None,
+    ) -> PanelResult:
+        """
+        Run the automatic regeneration loop after validation failure.
+
+        Per DESIGN.md §13:
+        - Attempt 2 (first auto-regen): reroll with no overrides (exact replay).
+          Only the image model's inherent stochasticity provides variation.
+        - Attempts 3...max: revise with no flags (preservation mode).
+          Fresh LLM scene prompt using prior prompt as context.
+
+        Args:
+            panel_spec: The PanelSpec dict.
+            max_attempts: Maximum regeneration attempts (from project.yaml).
+            surrounding_descriptions: Adjacent panel descriptions.
+            call_llm: Optional mock for the Scene Prompt Generator.
+
+        Returns:
+            PanelResult from the last attempt.
+        """
+        panel_id = panel_spec["panel_id"]
+        current_attempt = self.provenance.get_latest_attempt_number(panel_id)
+
+        while current_attempt < max_attempts:
+            next_attempt = current_attempt + 1
+
+            if next_attempt == 2:
+                # First auto-regen: reroll (exact replay, no overrides)
+                logger.info("Auto-regen attempt %d for %s: reroll (exact replay)",
+                           next_attempt, panel_id)
+                result = self.regenerate_panel(
+                    panel_spec,
+                    overrides={},
+                    surrounding_descriptions=surrounding_descriptions,
+                    call_llm=call_llm,
+                )
+            else:
+                # Subsequent auto-regens: revise (preservation mode)
+                logger.info("Auto-regen attempt %d for %s: revise (preservation)",
+                           next_attempt, panel_id)
+                result = self.regenerate_panel(
+                    panel_spec,
+                    overrides={},  # no flags → revise with preservation
+                    surrounding_descriptions=surrounding_descriptions,
+                    call_llm=call_llm,
+                )
+
+            if result.status != "success":
+                return result
+
+            # TODO: Run validation here once validation is integrated.
+            # For now, return the result — auto-regen loop is structurally
+            # in place but requires validation to drive the loop.
+            return result
+
+        # Exhausted attempts — escalate to human
+        logger.warning("Auto-regen exhausted for %s after %d attempts",
+                       panel_id, max_attempts)
+        return PanelResult(
+            panel_id=panel_id,
+            status="failure",
+            output_path=None,
+            error=f"Exhausted {max_attempts} auto-regeneration attempts",
+        )
 
     def _post_process(
         self,
@@ -390,6 +703,10 @@ class Orchestrator:
         result: GenerationResult,
         input_dimensions: tuple[int, int] | None,
         output_dimensions: tuple[int, int] | None,
+        regeneration_category: str | None = None,
+        overrides: dict[str, Any] | None = None,
+        scene_prompt_mode: str | None = None,
+        preservation_context: dict[str, Any] | None = None,
     ) -> None:
         """Append a Generation Record to the Provenance Store."""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -432,10 +749,28 @@ class Orchestrator:
 
         # Add scene prompt sub-record if available
         if hasattr(gen_request, "_scene_prompt") and gen_request._scene_prompt:
-            record["scene_prompt"] = {
+            sp_record: dict[str, Any] = {
                 "model": self.config.scene_prompt.model,
                 "context_profile": gen_request._context_profile,
                 "output": gen_request._scene_prompt,
+            }
+            # Regeneration metadata
+            if scene_prompt_mode is not None:
+                sp_record["mode"] = scene_prompt_mode
+                sp_record["regenerated"] = scene_prompt_mode != "reused"
+            if preservation_context is not None:
+                sp_record["preservation_context"] = {
+                    "prior_prompt": preservation_context.get("prior_prompt", ""),
+                    "change_summary": preservation_context.get("change_summary", {}),
+                }
+            record["scene_prompt"] = sp_record
+
+        # Add regeneration metadata
+        if regeneration_category is not None:
+            record["regeneration_category"] = regeneration_category
+            record["overrides"] = {
+                k: v for k, v in (overrides or {}).items()
+                if v is not None and v is not False
             }
 
         # Add reference selection sub-record

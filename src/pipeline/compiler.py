@@ -225,6 +225,22 @@ class ScenePromptGenerator:
             "Keep the description to 2-4 sentences. Be concrete and specific."
         )
 
+    def _build_preservation_system_prompt(self) -> str:
+        """System prompt for preservation mode (revising a prior scene prompt)."""
+        return (
+            "You are a scene prompt writer for a graphic novel production pipeline. "
+            "You are revising a previous scene prompt for a single comic panel. "
+            "You will receive the panel context and the previous scene prompt that was used. "
+            "You will also receive a description of what should change. "
+            "Preserve the previous description as closely as possible — only adjust for the requested changes. "
+            "Do not rewrite the entire description. Modify only what the changes require. "
+            "Write in second person present tense (\"We see...\"). "
+            "Focus on visual composition, lighting, character poses, and atmosphere. "
+            "Do not describe text, speech bubbles, or lettering. "
+            "Do not invent new characters or environments. "
+            "Keep the description to 2-4 sentences. Be concrete and specific."
+        )
+
     def _build_user_prompt(
         self,
         panel_spec: dict[str, Any],
@@ -280,12 +296,83 @@ class ScenePromptGenerator:
 
         return "\n".join(parts)
 
+    def _build_preservation_user_prompt(
+        self,
+        panel_spec: dict[str, Any],
+        surrounding_descriptions: list[str] | None,
+        prior_prompt: str,
+        change_summary: dict[str, Any],
+        feedback: str | None = None,
+    ) -> str:
+        """
+        Build user prompt for preservation mode.
+
+        Includes the normal panel context plus the prior scene prompt and
+        a structured description of what changed.
+        """
+        # Start with the standard context (same as cold-start)
+        parts: list[str] = []
+
+        style = panel_spec.get("style", {})
+        vs = style.get("visual_style", {})
+        parts.append(f"Visual style: {vs.get('prompt_tokens', '')}")
+        parts.append(f"Lighting: {style.get('lighting_defaults', '')}")
+        parts.append(f"Shot type: {panel_spec.get('shot_type', '')}")
+        parts.append(f"Mood: {panel_spec.get('mood', '')}")
+
+        env = panel_spec.get("environment")
+        if env:
+            parts.append(f"Environment: {env.get('prompt_tokens', {}).get('identity', '')}")
+
+        for char in panel_spec.get("characters", []):
+            tokens = char.get("prompt_tokens", {})
+            identity = tokens.get("identity", "")
+            parts.append(f"Character {char.get('display_name', '')}: {identity}")
+
+        cont = panel_spec.get("continuity", {})
+        if cont:
+            parts.append(f"Time of day: {cont.get('time_of_day', '')}")
+            parts.append(f"Location: {cont.get('location', '')}")
+
+        continuity_narrative = panel_spec.get("continuity_narrative")
+        if continuity_narrative:
+            parts.append(f"\nContinuity narrative: {continuity_narrative}")
+
+        parts.append(f"\nPanel description: {panel_spec.get('description', '')}")
+
+        if surrounding_descriptions:
+            parts.append("\nSurrounding panels for context:")
+            for desc in surrounding_descriptions:
+                parts.append(f"  - {desc}")
+
+        # Preservation-specific context
+        parts.append(f"\nPREVIOUS SCENE PROMPT:\n{prior_prompt}")
+
+        # Format the change summary
+        change_lines: list[str] = []
+        for field, change in change_summary.items():
+            if field == "feedback":
+                change_lines.append(f"  - User instruction: {change}")
+            elif isinstance(change, dict) and "from" in change and "to" in change:
+                change_lines.append(f"  - {field}: changed from '{change['from']}' to '{change['to']}'")
+            else:
+                change_lines.append(f"  - {field}: {change}")
+
+        if change_lines:
+            parts.append("\nREQUESTED CHANGES:\n" + "\n".join(change_lines))
+
+        if feedback:
+            parts.append(f"\nDIRECTOR'S NOTE (overrides all other instructions): {feedback}")
+
+        return "\n".join(parts)
+
     def generate(
         self,
         panel_spec: dict[str, Any],
         surrounding_descriptions: list[str] | None = None,
         user_feedback: str | None = None,
         call_llm: Any = None,
+        preservation_context: dict[str, Any] | None = None,
     ) -> str:
         """
         Generate the scene prompt for a single panel.
@@ -296,14 +383,27 @@ class ScenePromptGenerator:
             user_feedback: Optional human override instruction.
             call_llm: Callable (model, system_prompt, user_prompt) -> str.
                       If None, uses the real OpenAI API.
+            preservation_context: If provided, runs in preservation mode.
+                Must contain 'prior_prompt' (str) and 'change_summary' (dict).
+                Optional 'feedback' (str) for user instruction.
 
         Returns:
             The scene prompt string (layer [5]).
         """
-        system_prompt = self._build_system_prompt()
-        user_prompt = self._build_user_prompt(
-            panel_spec, surrounding_descriptions, user_feedback
-        )
+        if preservation_context is not None:
+            system_prompt = self._build_preservation_system_prompt()
+            user_prompt = self._build_preservation_user_prompt(
+                panel_spec,
+                surrounding_descriptions,
+                prior_prompt=preservation_context["prior_prompt"],
+                change_summary=preservation_context.get("change_summary", {}),
+                feedback=preservation_context.get("feedback") or user_feedback,
+            )
+        else:
+            system_prompt = self._build_system_prompt()
+            user_prompt = self._build_user_prompt(
+                panel_spec, surrounding_descriptions, user_feedback
+            )
 
         if call_llm is not None:
             return call_llm(self.model, system_prompt, user_prompt)
@@ -593,6 +693,7 @@ class PromptCompiler:
         surrounding_descriptions: list[str] | None = None,
         user_feedback: str | None = None,
         call_llm: Any = None,
+        preservation_context: dict[str, Any] | None = None,
     ) -> GenerationRequest:
         """
         Compile a PanelSpec into a GenerationRequest.
@@ -604,6 +705,9 @@ class PromptCompiler:
             user_feedback: Optional human override for regeneration.
             call_llm: Optional callable to mock the Scene Prompt Generator.
                       Signature: (model, system_prompt, user_prompt) -> str.
+            preservation_context: If provided, scene prompt runs in
+                preservation mode (revise category). Must contain
+                'prior_prompt' (str) and 'change_summary' (dict).
 
         Returns:
             GenerationRequest ready for the Image Generation Backend.
@@ -619,6 +723,7 @@ class PromptCompiler:
             surrounding_descriptions=surrounding_descriptions,
             user_feedback=user_feedback,
             call_llm=call_llm,
+            preservation_context=preservation_context,
         )
 
         # Update context store (no-op in v1)
@@ -700,6 +805,70 @@ class PromptCompiler:
             panelspec_path=f"output/{panel_id}.panelspec.json",
             compiler_version=self.config.compiler_version,
             _scene_prompt=scene_prompt,
+            _reference_selections=selection_records,
+            _context_profile=self.config.scene_prompt.context_profile,
+        )
+
+    def compile_for_replay(
+        self,
+        panel_spec: dict[str, Any],
+        stored_prompt: str,
+        seed: int | None = None,
+        quality: str | None = None,
+        thinking: str | None = None,
+    ) -> GenerationRequest:
+        """
+        Build a GenerationRequest for replay/reroll without an LLM call.
+
+        Uses the stored prompt string from provenance and re-selects
+        reference images from the PanelSpec (deterministic).
+
+        Args:
+            panel_spec: The PanelSpec dict.
+            stored_prompt: The exact prompt string from the prior
+                           Generation Record.
+            seed: Override seed (reroll). If None, uses config default.
+            quality: Override quality (reroll). If None, uses config default.
+            thinking: Override thinking (reroll). If None, uses config default.
+
+        Returns:
+            GenerationRequest ready for the Image Generation Backend.
+        """
+        panel_id = panel_spec["panel_id"]
+
+        # Re-select references (deterministic from PanelSpec)
+        selections, selection_records = self._select_references(panel_spec)
+
+        # Build reference_images list
+        reference_images: list[dict[str, str]] = []
+        for sel in selection_records:
+            if sel.role == "character":
+                file_path = f"characters/{sel.file}"
+            else:
+                file_path = f"environments/{sel.file}"
+            reference_images.append({
+                "ref_id": sel.ref_id,
+                "file": file_path,
+                "role": sel.role,
+            })
+
+        ig = self.config.image_generation
+
+        return GenerationRequest(
+            panel_id=panel_id,
+            model=ig.model,
+            prompt=stored_prompt,
+            size=select_aspect_ratio(
+                panel_spec["panel_geometry"]["width_px"],
+                panel_spec["panel_geometry"]["height_px"],
+            ),
+            quality=quality or ig.quality,
+            thinking=thinking or ig.thinking,
+            seed=seed if seed is not None else ig.seed,
+            reference_images=reference_images,
+            panelspec_path=f"output/{panel_id}.panelspec.json",
+            compiler_version=self.config.compiler_version,
+            _scene_prompt=stored_prompt,
             _reference_selections=selection_records,
             _context_profile=self.config.scene_prompt.context_profile,
         )
