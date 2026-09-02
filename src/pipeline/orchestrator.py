@@ -285,7 +285,7 @@ class Orchestrator:
             # Patch costume on each character that has a matching variant
             costume = overrides["costume"]
             patched_chars = []
-            for char in dict(panel_spec.get("characters", [])):
+            for char in panel_spec.get("characters", []):
                 patched_char = dict(char)
                 # Check if this costume variant exists for the character
                 # The PanelSpec stores refs with costume tags — we filter them
