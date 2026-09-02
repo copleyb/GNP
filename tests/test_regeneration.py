@@ -170,43 +170,52 @@ class TestCategoryInference:
 class TestPanelSpecPatching:
     """Tests for Orchestrator._apply_panelspec_patches()."""
 
-    def test_shot_type_patch(self, panel_spec):
+    @pytest.fixture
+    def orchestrator(self, config):
+        """Create a real Orchestrator instance for patching tests."""
+        return Orchestrator(config)
+
+    def test_shot_type_patch(self, orchestrator, panel_spec):
         overrides = {"shot_type": "dutch_angle"}
-        patched = Orchestrator._apply_panelspec_patches(panel_spec, overrides)
+        patched = orchestrator._apply_panelspec_patches(panel_spec, overrides)
         assert patched["shot_type"] == "dutch_angle"
         # Original unchanged
         assert panel_spec["shot_type"] != "dutch_angle"
 
-    def test_mood_patch(self, panel_spec):
+    def test_mood_patch(self, orchestrator, panel_spec):
         overrides = {"mood": "tense"}
-        patched = Orchestrator._apply_panelspec_patches(panel_spec, overrides)
+        patched = orchestrator._apply_panelspec_patches(panel_spec, overrides)
         assert patched["mood"] == "tense"
 
-    def test_description_patch(self, panel_spec):
+    def test_description_patch(self, orchestrator, panel_spec):
         original_desc = panel_spec["description"]
         overrides = {"description": "A completely new scene."}
-        patched = Orchestrator._apply_panelspec_patches(panel_spec, overrides)
+        patched = orchestrator._apply_panelspec_patches(panel_spec, overrides)
         assert patched["description"] == "A completely new scene."
         assert panel_spec["description"] == original_desc
 
-    def test_no_patches_returns_copy(self, panel_spec):
-        patched = Orchestrator._apply_panelspec_patches(panel_spec, {})
+    def test_no_patches_returns_copy(self, orchestrator, panel_spec):
+        patched = orchestrator._apply_panelspec_patches(panel_spec, {})
         assert patched == panel_spec
         assert patched is not panel_spec  # different object
 
-    def test_costume_patch_filters_refs(self, multi_char_spec):
+    def test_costume_patch_filters_refs(self, orchestrator, multi_char_spec):
         overrides = {"costume": "morning_routine"}
-        patched = Orchestrator._apply_panelspec_patches(multi_char_spec, overrides)
-        # Characters should have refs filtered to only morning_routine costume
+        patched = orchestrator._apply_panelspec_patches(multi_char_spec, overrides)
+        # Characters should have refs resolved from source YAML for the
+        # morning_routine variant (re-resolved via Wardrobe).
         for char in patched.get("characters", []):
+            # costume_variant should be updated
+            assert char["costume_variant"] == "morning_routine"
+            # References should be for the morning_routine costume
             for ref in char.get("references", []):
                 assert ref.get("costume") == "morning_routine"
 
-    def test_non_destructive(self, panel_spec):
+    def test_non_destructive(self, orchestrator, panel_spec):
         """Original PanelSpec is never modified."""
         original = json.dumps(panel_spec, sort_keys=True)
         overrides = {"shot_type": "dutch_angle", "mood": "tense", "description": "new"}
-        Orchestrator._apply_panelspec_patches(panel_spec, overrides)
+        orchestrator._apply_panelspec_patches(panel_spec, overrides)
         assert json.dumps(panel_spec, sort_keys=True) == original
 
 

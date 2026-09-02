@@ -262,8 +262,8 @@ class Orchestrator:
 
     # -- PanelSpec patching (non-destructive) ------------------------------
 
-    @staticmethod
     def _apply_panelspec_patches(
+        self,
         panel_spec: dict[str, Any],
         overrides: dict[str, Any],
     ) -> dict[str, Any]:
