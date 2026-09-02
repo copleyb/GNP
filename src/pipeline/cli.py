@@ -382,6 +382,8 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
     if getattr(args, "description", None) is not None:
         overrides["description"] = args.description
 
+    from_attempt = getattr(args, "from_attempt", None)
+
     orch = Orchestrator(config)
 
     # Infer category for display
@@ -389,6 +391,8 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
 
     print(f"Regenerating {_fmt_panel_id(args.panel)}...")
     print(f"  Category: {category}")
+    if from_attempt is not None:
+        print(f"  Branching from attempt {from_attempt}")
     if overrides:
         for k, v in overrides.items():
             if v is not True:
@@ -403,6 +407,7 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
         overrides=overrides,
         surrounding_descriptions=surrounding,
         progress_callback=_progress_printer,
+        from_attempt=from_attempt,
     )
     elapsed = time.time() - _progress_printer._t0
 
@@ -835,6 +840,10 @@ examples:
                          help="Override mood (regenerate)")
     p_regen.add_argument("--description", metavar="TEXT",
                          help="Override panel description (regenerate)")
+
+    # Branching control
+    p_regen.add_argument("--from-attempt", type=int, metavar="N",
+                         help="Branch from a specific attempt number instead of the latest")
 
     p_regen.set_defaults(func=cmd_regenerate)
 

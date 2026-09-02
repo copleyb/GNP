@@ -174,6 +174,24 @@ class ProvenanceStore:
             return None
         return records[-1]
 
+    def get_record_by_attempt(
+        self, panel_id: str, attempt: int
+    ) -> dict[str, Any] | None:
+        """
+        Get a specific attempt's record for a panel.
+
+        Args:
+            panel_id: The panel identifier.
+            attempt: The attempt number (1-indexed).
+
+        Returns None if no record exists for that attempt number.
+        """
+        records = self.read_all(panel_id)
+        for r in records:
+            if r.get("attempt_number") == attempt:
+                return r
+        return None
+
     def has_records(self, panel_id: str) -> bool:
         """Check if any records exist for a panel."""
         path = self._provenance_path(panel_id)

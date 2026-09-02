@@ -361,6 +361,7 @@ class Orchestrator:
         surrounding_descriptions: list[str] | None = None,
         call_llm: Any = None,
         progress_callback: Any = None,
+        from_attempt: int | None = None,
     ) -> PanelResult:
         """
         Regenerate a single panel using the four-category system.
@@ -386,8 +387,20 @@ class Orchestrator:
         category = self._infer_category(overrides)
         panel_id = panel_spec["panel_id"]
 
-        # Get the latest provenance record (for prior prompt, seed, etc.)
-        latest_record = self.provenance.get_latest_record(panel_id)
+        # Get the provenance record to branch from (latest, or specific attempt)
+        if from_attempt is not None:
+            latest_record = self.provenance.get_record_by_attempt(
+                panel_id, from_attempt
+            )
+            if latest_record is None:
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error=f"No provenance record found for attempt {from_attempt}",
+                )
+        else:
+            latest_record = self.provenance.get_latest_record(panel_id)
 
         # Determine scene prompt mode (for later provenance recording)
         scene_prompt_mode = "reused"  # default for replay/reroll
