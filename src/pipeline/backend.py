@@ -98,16 +98,17 @@ class ImageGenerationBackend:
                 "quality": request.quality,
             }
 
-            # Add seed if configured (null = random, don't send)
+            # Note: 'seed' and 'thinking' are specified in DESIGN.md but
+            # the current gpt-image-2 API SDK does not support them as
+            # top-level kwargs on images.edit(). We pass them via extra_body
+            # and fall back gracefully if the API rejects them.
+            extra_body = {}
             if request.seed is not None:
-                api_kwargs["seed"] = request.seed
-
-            # Note: The 'thinking' parameter is specified in DESIGN.md but
-            # the current gpt-image-2 API (SDK v2.48.0) does not support it
-            # on the images.edit endpoint. We attempt it via extra_body and
-            # fall back gracefully if rejected.
+                extra_body["seed"] = request.seed
             if hasattr(request, "thinking") and request.thinking:
-                api_kwargs["extra_body"] = {"thinking": request.thinking}
+                extra_body["thinking"] = request.thinking
+            if extra_body:
+                api_kwargs["extra_body"] = extra_body
 
             response = client.images.edit(**api_kwargs)
 
@@ -124,9 +125,11 @@ class ImageGenerationBackend:
         except Exception as e:
             error_str = str(e)
 
-            # If the error is about 'thinking', retry without it
-            if "thinking" in error_str and "extra_body" in api_kwargs:
-                logger.info("API rejected 'thinking' parameter, retrying without it")
+            # If the error is about an unsupported parameter, retry without extra_body
+            if "extra_body" in api_kwargs and (
+                "thinking" in error_str or "seed" in error_str
+            ):
+                logger.info("API rejected extra_body parameter, retrying without it: %s", error_str)
                 del api_kwargs["extra_body"]
 
                 try:
