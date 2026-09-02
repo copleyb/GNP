@@ -92,6 +92,7 @@ class Orchestrator:
         user_feedback: str | None = None,
         attempt_number: int | None = None,
         call_llm: Any = None,
+        progress_callback: Any = None,
     ) -> PanelResult:
         """
         Generate a single panel from a PanelSpec.
@@ -109,6 +110,8 @@ class Orchestrator:
         panel_id = panel_spec["panel_id"]
 
         # 1. Compile the prompt
+        if progress_callback:
+            progress_callback("Compiling prompt...")
         try:
             gen_request = self.compiler.compile(
                 panel_spec,
@@ -134,6 +137,8 @@ class Orchestrator:
             )
 
         # 2. Generate the image
+        if progress_callback:
+            progress_callback("Generating image (this can take 60-120s)...")
         result = self.backend.generate(gen_request)
 
         if not result.succeeded:
@@ -145,6 +150,8 @@ class Orchestrator:
             )
 
         # 3. Post-process: scale-to-fill center crop
+        if progress_callback:
+            progress_callback("Post-processing...")
         geo = panel_spec["panel_geometry"]
         target_w = int(geo["width_px"] * PIPELINE_SCALE_FACTOR)
         target_h = int(geo["height_px"] * PIPELINE_SCALE_FACTOR)
@@ -158,6 +165,8 @@ class Orchestrator:
         )
 
         # 4. Write output file
+        if progress_callback:
+            progress_callback("Writing output...")
         attempt = attempt_number or self._next_attempt_number(panel_id)
         output_path = self._write_output(
             result.output_bytes if not output_dimensions else None,
@@ -187,6 +196,7 @@ class Orchestrator:
         self,
         panels: list[dict[str, Any]],
         call_llm: Any = None,
+        progress_callback: Any = None,
     ) -> PageResult:
         """
         Generate all panels on a page in sequence.
@@ -194,6 +204,7 @@ class Orchestrator:
         Args:
             panels: List of PanelSpec dicts for a single page.
             call_llm: Optional mock for the Scene Prompt Generator.
+            progress_callback: Optional callable(str) for progress updates.
 
         Returns:
             PageResult with results for each panel.
@@ -209,7 +220,13 @@ class Orchestrator:
             if i < len(panels) - 1:
                 surrounding.append(f"Next panel: {panels[i+1]['description']}")
 
-            result = self.generate_panel(spec, surrounding_descriptions=surrounding)
+            if progress_callback:
+                progress_callback(f"Panel {i+1}/{len(panels)}: {spec['panel_id']}")
+            result = self.generate_panel(
+                spec,
+                surrounding_descriptions=surrounding,
+                progress_callback=progress_callback,
+            )
             results.append(result)
             logger.info("Panel %s: %s", spec["panel_id"], result.status)
 
@@ -343,6 +360,7 @@ class Orchestrator:
         overrides: dict[str, Any] | None = None,
         surrounding_descriptions: list[str] | None = None,
         call_llm: Any = None,
+        progress_callback: Any = None,
     ) -> PanelResult:
         """
         Regenerate a single panel using the four-category system.
@@ -378,6 +396,9 @@ class Orchestrator:
             scene_prompt_mode = self._determine_scene_prompt_mode(overrides)
 
         # -- Build the GenerationRequest based on category --
+        if progress_callback:
+            stage = "Replaying prompt" if category in ("replay", "reroll") else "Generating scene prompt"
+            progress_callback(stage + "...")
 
         if category in ("replay", "reroll"):
             # Backend-only: use stored prompt from provenance
@@ -473,6 +494,8 @@ class Orchestrator:
                 gen_request = replace(gen_request, **patch_kwargs)
 
         # -- Generate the image --
+        if progress_callback:
+            progress_callback("Generating image (this can take 60-120s)...")
         result = self.backend.generate(gen_request)
 
         if not result.succeeded:
@@ -484,6 +507,8 @@ class Orchestrator:
             )
 
         # -- Post-process --
+        if progress_callback:
+            progress_callback("Post-processing...")
         geo = panel_spec["panel_geometry"]
         target_w = int(geo["width_px"] * PIPELINE_SCALE_FACTOR)
         target_h = int(geo["height_px"] * PIPELINE_SCALE_FACTOR)
@@ -497,6 +522,8 @@ class Orchestrator:
         )
 
         # -- Write output --
+        if progress_callback:
+            progress_callback("Writing output...")
         attempt = self._next_attempt_number(panel_id)
         output_path = self._write_output(
             result.output_bytes if not output_dimensions else None,

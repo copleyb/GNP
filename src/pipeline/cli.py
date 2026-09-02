@@ -172,6 +172,12 @@ def cmd_parse(args: argparse.Namespace) -> int:
     return 0
 
 
+def _progress_printer(msg: str) -> None:
+    """Print a progress update with a timestamp."""
+    elapsed = time.time() - _progress_printer._t0
+    print(f"  [{elapsed:5.1f}s] {msg}")
+
+
 # -- Command: generate -------------------------------------------------------
 
 def cmd_generate(args: argparse.Namespace) -> int:
@@ -240,9 +246,9 @@ def _generate_single(
     print(f"  Size: {panel_spec['panel_geometry']['width_px']}x{panel_spec['panel_geometry']['height_px']}px")
     print()
 
-    t0 = time.time()
-    result = orch.generate_panel(panel_spec, surrounding_descriptions=surrounding)
-    elapsed = time.time() - t0
+    _progress_printer._t0 = time.time()
+    result = orch.generate_panel(panel_spec, surrounding_descriptions=surrounding, progress_callback=_progress_printer)
+    elapsed = time.time() - _progress_printer._t0
 
     _print_panel_result(result)
     print(f"\n  Elapsed: {elapsed:.1f}s")
@@ -259,9 +265,9 @@ def _generate_page(
 
     print(f"Generating page {page_id} ({len(panels)} panels)...")
 
-    t0 = time.time()
-    result = orch.generate_page(panels)
-    elapsed = time.time() - t0
+    _progress_printer._t0 = time.time()
+    result = orch.generate_page(panels, progress_callback=_progress_printer)
+    elapsed = time.time() - _progress_printer._t0
 
     _print_page_result(result)
     print(f"\n  Elapsed: {elapsed:.1f}s")
@@ -283,7 +289,7 @@ def _generate_chapter(
 
     total_succeeded = 0
     total_failed = 0
-    t0 = time.time()
+    _progress_printer._t0 = time.time()
 
     for page_id in sorted(pages):
         panels = pages[page_id]
@@ -294,7 +300,7 @@ def _generate_chapter(
         total_failed += result.failed_count
         print()
 
-    elapsed = time.time() - t0
+    elapsed = time.time() - _progress_printer._t0
 
     print(f"{'='*50}")
     print(f"Chapter complete: {total_succeeded}/{total_panels} panels succeeded")
@@ -391,13 +397,14 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
                 print(f"  {k}: (flag)")
     print()
 
-    t0 = time.time()
+    _progress_printer._t0 = time.time()
     result = orch.regenerate_panel(
         panel_spec,
         overrides=overrides,
         surrounding_descriptions=surrounding,
+        progress_callback=_progress_printer,
     )
-    elapsed = time.time() - t0
+    elapsed = time.time() - _progress_printer._t0
 
     _print_panel_result(result)
     print(f"\n  Elapsed: {elapsed:.1f}s")
