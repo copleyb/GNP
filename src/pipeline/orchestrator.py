@@ -373,6 +373,7 @@ class Orchestrator:
 
         # Determine scene prompt mode (for later provenance recording)
         scene_prompt_mode = "reused"  # default for replay/reroll
+        preservation_context = None  # set for revise/regenerate below
         if category in ("revise", "regenerate"):
             scene_prompt_mode = self._determine_scene_prompt_mode(overrides)
 

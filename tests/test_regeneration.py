@@ -412,7 +412,7 @@ class TestRegeneratePanel:
         orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
         orch._next_attempt_number = MagicMock(return_value=1)
 
-        result = orch.regenerate_panel(panel_spec, overrides={})
+        result = orch.regenerate_panel(panel_spec, overrides={}, call_llm=mock_call_llm)
 
         assert result.status == "success"
         assert result.panel_id == panel_spec["panel_id"]
