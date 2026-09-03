@@ -1011,6 +1011,8 @@ The `scene_prompt` sub-record gains a `mode` field:
 - `mode`: `"cold_start"` | `"preservation"` | `"preservation_with_feedback"` | `"direct"` | `"reused"`. For auditability.
 - `preservation_context`: present only when mode is preservation-based. Records the prior prompt and the structured diff passed to the LLM.
 
+**Costume entries in the change summary are dereferenced.** Variant labels alone (`"costume": {"from": "default", "to": "morning_routine"}`) are project-local vocabulary the preservation LLM cannot act on — it has no way to know the new variant excludes the old garments, so prose describing the old costume survives the rewrite and contradicts the Character layer. Costume entries therefore also carry `from_description` and `to_description` — the actual garment text extracted from the composed identity strings of the branch spec (pre-patch) and the working spec (post-patch) respectively. When the compiler renders a costume change for the LLM, it appends an explicit instruction: replace ALL clothing and appearance references from the old costume with the new costume description; garments may not carry over. Entries for characters whose identity has no costume segment (or legacy records) degrade gracefully to the bare label.
+
 The verbatim prompt string is always stored in the record regardless of mode — the metadata is for auditability and debugging, not for data recovery.
 
 ### Human escalation

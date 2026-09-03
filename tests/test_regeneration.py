@@ -1112,11 +1112,98 @@ class TestCostumeDiffFrom:
 
     def test_costume_diff_from_default(self, panel_spec):
         diff = Orchestrator._compute_diff(panel_spec, {"costume": "morning_routine"})
-        assert diff["costume"] == {"from": "default", "to": "morning_routine"}
+        assert diff["costume"]["from"] == "default"
+        assert diff["costume"]["to"] == "morning_routine"
+        # Enriched entries also carry the old costume's garments
+        assert diff["costume"]["from_description"]
 
     def test_costume_diff_from_chained_variant(self, panel_spec):
         patched = json.loads(json.dumps(panel_spec))
         for char in patched.get("characters", []):
             char["costume_variant"] = "morning_routine"
         diff = Orchestrator._compute_diff(patched, {"costume": "roadwork"})
-        assert diff["costume"] == {"from": "morning_routine", "to": "roadwork"}
+        assert diff["costume"]["from"] == "morning_routine"
+        assert diff["costume"]["to"] == "roadwork"
+
+
+# -- Costume-aware diff enrichment (scene prompt preservation fix) -----------
+
+class TestCostumeDiffEnrichment:
+    """Costume diff entries carry garment descriptions, not just variant labels."""
+
+    def test_extract_costume_description(self, panel_spec):
+        char = panel_spec["characters"][0]
+        desc = Orchestrator._extract_costume_description(char)
+        assert desc is not None
+        assert "Currently wearing" not in desc
+        # Identity base text is not included
+        base = char["prompt_tokens"]["identity"].split("Currently wearing:")[0]
+        assert base.split(".")[0] not in desc
+
+    def test_extract_returns_none_for_agnostic_identity(self, panel_spec):
+        char = json.loads(json.dumps(panel_spec["characters"][0]))
+        char["prompt_tokens"]["identity"] = "Alyssa, a blonde woman."
+        assert Orchestrator._extract_costume_description(char) is None
+
+    def test_diff_costume_without_patched_spec(self, panel_spec):
+        """Two-arg call (backward compat): labels only, from_description kept."""
+        diff = Orchestrator._compute_diff(panel_spec, {"costume": "morning_routine"})
+        assert diff["costume"]["from"] == "default"
+        assert diff["costume"]["to"] == "morning_routine"
+        assert "from_description" in diff["costume"]
+        assert "to_description" not in diff["costume"]
+
+    def test_diff_costume_with_patched_spec(self, config, panel_spec):
+        """Patched spec supplies to_description from its composed identity."""
+        orch = Orchestrator(config)
+        patched = orch._apply_panelspec_patches(
+            panel_spec, {"costume": "morning_routine"}
+        )
+        diff = Orchestrator._compute_diff(
+            panel_spec, {"costume": "morning_routine"}, patched_spec=patched
+        )
+        entry = diff["costume"]
+        assert entry["to_description"]
+        assert entry["from_description"] != entry["to_description"]
+
+    def test_regeneration_passes_enriched_diff_to_preservation(
+        self, config, panel_spec, tmp_path
+    ):
+        """End-to-end: the preservation user prompt contains the new costume
+        description and the rewrite instruction."""
+        orch = Orchestrator(config)
+        orch.backend = make_mock_backend()
+        orch.provenance = MagicMock()
+        orch.provenance.get_latest_record.return_value = {
+            "generation_request": {"prompt": "Old.", "model": "gpt-image-2",
+                                   "size": "1024x1024", "quality": "medium",
+                                   "thinking": "medium", "seed": 100},
+            "scene_prompt": {"output": "Old scene prompt with jacket."},
+        }
+        orch._write_output = MagicMock(return_value=tmp_path / "out.png")
+        orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
+        orch._next_attempt_number = MagicMock(return_value=2)
+
+        captured = {}
+
+        def capture_llm(model, system_prompt, user_prompt):
+            captured["user_prompt"] = user_prompt
+            return "Patched scene prompt."
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"costume": "morning_routine"},
+            call_llm=capture_llm,
+        )
+        assert result.status == "success"
+
+        up = captured["user_prompt"]
+        assert "New costume:" in up
+        assert "Old costume:" in up
+        assert "morning_routine" in up
+        assert "Replace ALL clothing" in up
+
+        # Provenance records the enriched change summary
+        append_call = orch.provenance.append.call_args[0][0]
+        ctx = append_call["scene_prompt"]["preservation_context"]
+        assert "to_description" in ctx["change_summary"]["costume"]

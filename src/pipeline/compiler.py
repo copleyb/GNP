@@ -356,6 +356,23 @@ class ScenePromptGenerator:
         for field, change in change_summary.items():
             if field == "feedback":
                 change_lines.append(f"  - User instruction: {change}")
+            elif field == "costume" and isinstance(change, dict) and "from" in change:
+                # Costume entries carry garment descriptions (extracted from
+                # the composed identity strings) so the LLM can act on the
+                # change — variant labels alone are project-local vocabulary.
+                line = f"  - costume: changed from '{change['from']}' to '{change['to']}'"
+                if change.get("from_description"):
+                    line += f"\n      Old costume: {change['from_description']}"
+                if change.get("to_description"):
+                    line += f"\n      New costume: {change['to_description']}"
+                line += (
+                    "\n      IMPORTANT: Replace ALL clothing and appearance "
+                    "references in the previous scene prompt that describe the "
+                    "old costume with the new costume description. Do not "
+                    "carry any garments, accessories, or footwear from the "
+                    "old costume into the new description."
+                )
+                change_lines.append(line)
             elif isinstance(change, dict) and "from" in change and "to" in change:
                 change_lines.append(f"  - {field}: changed from '{change['from']}' to '{change['to']}'")
             else:

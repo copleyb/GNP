@@ -309,9 +309,26 @@ class Orchestrator:
     # -- Structured diff computation ---------------------------------------
 
     @staticmethod
+    def _extract_costume_description(char: dict[str, Any]) -> str | None:
+        """
+        Extract the costume description from a character's composed identity.
+
+        The Parser and Wardrobe compose identity as
+        "<costume-agnostic identity>. Currently wearing: <description>".
+        Returns None if the identity carries no costume segment.
+        """
+        identity = char.get("prompt_tokens", {}).get("identity", "")
+        marker = "Currently wearing: "
+        idx = identity.find(marker)
+        if idx == -1:
+            return None
+        return identity[idx + len(marker):].rstrip(".").strip()
+
+    @staticmethod
     def _compute_diff(
         panel_spec: dict[str, Any],
         overrides: dict[str, Any],
+        patched_spec: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """
         Compute a structured diff from the panel spec and overrides.
@@ -319,6 +336,18 @@ class Orchestrator:
         For PanelSpec field overrides: {"field": {"from": old, "to": new}}
         For feedback: {"feedback": "user instruction text"}
         Composes both when present.
+
+        The costume entry carries the actual garment descriptions
+        (from_description / to_description) in addition to the variant
+        labels, so the preservation LLM can rewrite clothing references
+        in the prior scene prompt. Variant labels alone are project-local
+        vocabulary the LLM cannot act on.
+
+        Args:
+            panel_spec: The branch spec (pre-patch state).
+            overrides: The regeneration overrides.
+            patched_spec: The post-patch spec (for the regenerate category).
+                When given, its composed identity supplies to_description.
         """
         diff: dict[str, Any] = {}
 
@@ -334,13 +363,24 @@ class Orchestrator:
             # override applies to all characters in the panel). Characters
             # with no explicit variant field parse as "default".
             current_variant = "default"
+            from_description = None
             for char in panel_spec.get("characters", []):
                 current_variant = char.get("costume_variant", "default")
+                from_description = Orchestrator._extract_costume_description(char)
                 break
-            diff["costume"] = {
+            entry: dict[str, Any] = {
                 "from": current_variant,
                 "to": overrides["costume"],
             }
+            if from_description:
+                entry["from_description"] = from_description
+            if patched_spec is not None:
+                for char in patched_spec.get("characters", []):
+                    to_description = Orchestrator._extract_costume_description(char)
+                    if to_description:
+                        entry["to_description"] = to_description
+                    break
+            diff["costume"] = entry
 
         if "feedback" in overrides:
             diff["feedback"] = overrides["feedback"]
@@ -503,7 +543,9 @@ class Orchestrator:
                     prior_prompt = None
 
                 if prior_prompt:
-                    diff = self._compute_diff(branch_spec, overrides)
+                    diff = self._compute_diff(
+                        branch_spec, overrides, patched_spec=working_spec
+                    )
                     preservation_context = {
                         "prior_prompt": prior_prompt,
                         "change_summary": diff,
