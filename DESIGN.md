@@ -655,6 +655,10 @@ Canonical reference assets (character sheets, environment references) are exclus
   "attempt_number": 1,
   "timestamp_utc": "2026-07-19T22:15:00Z",
 
+  "effective_panelspec": {
+    "...": "The exact PanelSpec this attempt was compiled against (post-patch for regenerate, as-is otherwise). Full spec omitted here for brevity. Present on all records written since this feature; older records fall back to the disk PanelSpec."
+  },
+
   "compiler": {
     "version": "1.0.0",
     "prompt_hash": "sha256:abc123..."
@@ -920,12 +924,15 @@ When the Scene Prompt Generator runs during a regeneration, the mode is determin
 
 **Cold start exception:** If no prior Generation Record exists for the panel (first-ever regeneration of a panel that was generated before provenance tracking), the Scene Prompt Generator runs as a cold start regardless of the mode. This is a graceful degradation, not an error.
 
-**Non-destructive PanelSpec patching:** In the regenerate category, PanelSpec field overrides are applied in-memory for this generation only. The PanelSpec on disk is not modified. If the result is good, the user updates the chapter plan to persist the desired inputs for future generations.
+**Non-destructive PanelSpec patching:** In the regenerate category, PanelSpec field overrides are applied in-memory — the PanelSpec on disk is never modified. If the result is good, the user updates the chapter plan to persist the desired inputs for future generations.
+
+**Effective PanelSpec preservation (per-attempt state chaining):** Every Generation Record stores `effective_panelspec` — the exact spec the attempt was compiled against (post-patch for regenerate, as-is otherwise). When a regeneration branches from an attempt (the latest by default, or a specific one via `--from-attempt N`), the Orchestrator loads that attempt's `effective_panelspec` and uses it as the base spec. New PanelSpec overrides patch on top of the branched state; the structured diff's "from" values are computed against it; replay/reroll reference selection uses it. This makes each record fully self-contained and lets PanelSpec overrides chain across calls — the "iterate on my last change" workflow. To revert a field to its disk-PanelSpec value, restate the field explicitly (e.g. `--costume default`). Records written before this feature (no `effective_panelspec` field) fall back to the disk PanelSpec — identical to the original behavior.
 
 ### Pipeline execution per panel
 
 ```
-1. Load PanelSpec from disk
+1. Load PanelSpec from disk; if branching from a prior attempt, load that
+   attempt's effective_panelspec from provenance instead
 2. Call Prompt Compiler with PanelSpec + optional user_feedback
    → Returns GenerationRequest (or reuses previous request if --backend-only)
 3. Call Backend Adapter with GenerationRequest

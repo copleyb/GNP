@@ -182,6 +182,7 @@ class Orchestrator:
         self._record_provenance(
             panel_id, attempt, gen_request, result,
             input_dimensions, output_dimensions,
+            effective_panelspec=panel_spec,
         )
 
         return PanelResult(
@@ -329,8 +330,15 @@ class Orchestrator:
                 }
 
         if "costume" in overrides:
+            # Report the current variant of the primary character (the
+            # override applies to all characters in the panel). Characters
+            # with no explicit variant field parse as "default".
+            current_variant = "default"
+            for char in panel_spec.get("characters", []):
+                current_variant = char.get("costume_variant", "default")
+                break
             diff["costume"] = {
-                "from": "default",
+                "from": current_variant,
                 "to": overrides["costume"],
             }
 
@@ -407,6 +415,22 @@ class Orchestrator:
         else:
             latest_record = self.provenance.get_latest_record(panel_id)
 
+        # Resolve the effective PanelSpec to branch from (Feature: per-attempt
+        # effective PanelSpec preservation, DESIGN.md §13).
+        # Each attempt records the exact spec it was compiled with. Branching
+        # from an attempt (explicitly via --from-attempt, or the latest by
+        # default) inherits that attempt's effective state, so PanelSpec
+        # overrides chain across regeneration calls. Old records without
+        # this field fall back to the disk PanelSpec (original behavior).
+        branch_spec = panel_spec
+        if latest_record and latest_record.get("effective_panelspec"):
+            branch_spec = latest_record["effective_panelspec"]
+
+        # The effective spec this attempt will be compiled against.
+        # Defaults to the branch spec; the regenerate path replaces it
+        # with the patched spec below.
+        effective_spec = branch_spec
+
         # Determine scene prompt mode (for later provenance recording)
         scene_prompt_mode = "reused"  # default for replay/reroll
         preservation_context = None  # set for revise/regenerate below
@@ -429,14 +453,14 @@ class Orchestrator:
                 category = "revise"
                 scene_prompt_mode = "cold_start"
                 gen_request = self.compiler.compile(
-                    panel_spec,
+                    branch_spec,
                     surrounding_descriptions=surrounding_descriptions,
                     call_llm=call_llm,
                 )
             else:
                 stored_gr = latest_record["generation_request"]
                 gen_request = self.compiler.compile_for_replay(
-                    panel_spec,
+                    branch_spec,
                     stored_prompt=stored_gr["prompt"],
                     seed=overrides.get("seed"),
                     quality=overrides.get("quality"),
@@ -445,9 +469,11 @@ class Orchestrator:
 
         else:
             # Revise or regenerate: run the compiler (possibly with preservation)
-            working_spec = panel_spec
+            working_spec = branch_spec
             if category == "regenerate":
-                working_spec = self._apply_panelspec_patches(panel_spec, overrides)
+                working_spec = self._apply_panelspec_patches(branch_spec, overrides)
+
+            effective_spec = working_spec
 
             preservation_context = None
             user_feedback = None
@@ -477,7 +503,7 @@ class Orchestrator:
                     prior_prompt = None
 
                 if prior_prompt:
-                    diff = self._compute_diff(panel_spec, overrides)
+                    diff = self._compute_diff(branch_spec, overrides)
                     preservation_context = {
                         "prior_prompt": prior_prompt,
                         "change_summary": diff,
@@ -527,7 +553,7 @@ class Orchestrator:
         # -- Post-process --
         if progress_callback:
             progress_callback("Post-processing...")
-        geo = panel_spec["panel_geometry"]
+        geo = branch_spec["panel_geometry"]
         target_w = int(geo["width_px"] * PIPELINE_SCALE_FACTOR)
         target_h = int(geo["height_px"] * PIPELINE_SCALE_FACTOR)
 
@@ -559,6 +585,7 @@ class Orchestrator:
             overrides=overrides,
             scene_prompt_mode=scene_prompt_mode,
             preservation_context=preservation_context,
+            effective_panelspec=effective_spec,
         )
 
         return PanelResult(
@@ -753,6 +780,7 @@ class Orchestrator:
         overrides: dict[str, Any] | None = None,
         scene_prompt_mode: str | None = None,
         preservation_context: dict[str, Any] | None = None,
+        effective_panelspec: dict[str, Any] | None = None,
     ) -> None:
         """Append a Generation Record to the Provenance Store."""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -792,6 +820,13 @@ class Orchestrator:
                 }
             },
         }
+
+        # Effective PanelSpec: the exact spec this attempt was compiled
+        # against (post-patch for regenerate, as-is otherwise). This makes
+        # each record fully self-contained — a subsequent regeneration
+        # branching from this attempt reconstructs its full state.
+        if effective_panelspec is not None:
+            record["effective_panelspec"] = effective_panelspec
 
         # Add scene prompt sub-record if available
         if hasattr(gen_request, "_scene_prompt") and gen_request._scene_prompt:

@@ -854,3 +854,269 @@ class TestRegenerationProvenance:
         assert append_call["scene_prompt"]["regenerated"] is True
         assert "preservation_context" in append_call["scene_prompt"]
         assert append_call["scene_prompt"]["preservation_context"]["prior_prompt"] == "Old scene prompt."
+
+
+# -- Effective PanelSpec preservation (per-attempt state chaining) ------------
+
+def _seed_record(store, panel_id, attempt, spec, scene_output="Old scene prompt.",
+                 prompt="Old prompt."):
+    """Append a minimal but valid Generation Record to a real store."""
+    record = {
+        "record_id": f"{panel_id}_attempt_{attempt:03d}",
+        "panel_id": panel_id,
+        "attempt_number": attempt,
+        "timestamp_utc": "2026-09-02T00:00:00Z",
+        "compiler": {"version": "1.0.0", "prompt_hash": "sha256:seed..."},
+        "generation_request": {
+            "model": "gpt-image-2",
+            "prompt": prompt,
+            "size": "1024x1024",
+            "quality": "medium",
+            "thinking": "medium",
+            "seed": 100,
+            "n": 1,
+        },
+        "outcome": {
+            "status": "success",
+            "output_file": f"output/{panel_id}_attempt_{attempt:03d}.png",
+            "api_response_id": None,
+        },
+        "post_processing": {"crop": {"applied": False}},
+        "scene_prompt": {
+            "model": "gpt-4o-mini",
+            "context_profile": "default_v1",
+            "output": scene_output,
+        },
+    }
+    if spec is not None:
+        record["effective_panelspec"] = spec
+    store.append(record)
+    return record
+
+
+def _make_orch_with_real_store(config, tmp_path):
+    """Orchestrator with a real ProvenanceStore in tmp_path."""
+    orch = Orchestrator(config)
+    orch.backend = make_mock_backend()
+    orch.provenance = ProvenanceStore(tmp_path)
+    orch._write_output = MagicMock(return_value=tmp_path / "out.png")
+    orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
+    # Use the store's real numbering so records interleave correctly
+    # with seeded records (read_all sorts by attempt_number).
+    orch._next_attempt_number = lambda pid: orch.provenance.get_next_attempt_number(pid)
+    return orch
+
+
+class TestEffectivePanelspecRecording:
+    """Each attempt records the spec it was compiled against."""
+
+    def test_regenerate_records_patched_spec(self, config, panel_spec, tmp_path):
+        orch = Orchestrator(config)
+        orch.backend = make_mock_backend()
+        orch.provenance = MagicMock()
+        orch.provenance.get_latest_record.return_value = {
+            "generation_request": {"prompt": "Old.", "model": "gpt-image-2",
+                                   "size": "1024x1024", "quality": "medium",
+                                   "thinking": "medium", "seed": 100},
+            "scene_prompt": {"output": "Old scene prompt."},
+        }
+        orch._write_output = MagicMock(return_value=tmp_path / "out.png")
+        orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
+        orch._next_attempt_number = MagicMock(return_value=2)
+
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"shot_type": "dutch_angle"},
+            call_llm=mock_call_llm,
+        )
+
+        append_call = orch.provenance.append.call_args[0][0]
+        assert append_call["effective_panelspec"]["shot_type"] == "dutch_angle"
+        # Unpatched fields pass through unchanged
+        assert append_call["effective_panelspec"]["mood"] == panel_spec["mood"]
+        assert append_call["effective_panelspec"]["description"] == panel_spec["description"]
+
+    def test_revise_records_branch_spec(self, config, panel_spec, tmp_path):
+        orch = Orchestrator(config)
+        orch.backend = make_mock_backend()
+        orch.provenance = MagicMock()
+        orch.provenance.get_latest_record.return_value = {
+            "generation_request": {"prompt": "Old.", "model": "gpt-image-2",
+                                   "size": "1024x1024", "quality": "medium",
+                                   "thinking": "medium", "seed": 100},
+            "scene_prompt": {"output": "Old scene prompt."},
+        }
+        orch._write_output = MagicMock(return_value=tmp_path / "out.png")
+        orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
+        orch._next_attempt_number = MagicMock(return_value=2)
+
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"feedback": "warmer"},
+            call_llm=mock_call_llm,
+        )
+
+        append_call = orch.provenance.append.call_args[0][0]
+        # Revise (no PanelSpec overrides): effective spec == branch spec == disk spec
+        assert append_call["effective_panelspec"] == panel_spec
+
+    def test_initial_generation_records_disk_spec(self, config, panel_spec, tmp_path):
+        orch = Orchestrator(config)
+        orch.backend = make_mock_backend()
+        orch.provenance = MagicMock()
+        orch._write_output = MagicMock(return_value=tmp_path / "out.png")
+        orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
+        orch._next_attempt_number = MagicMock(return_value=1)
+
+        result = orch.generate_panel(panel_spec, call_llm=mock_call_llm)
+        assert result.status == "success"
+
+        append_call = orch.provenance.append.call_args[0][0]
+        assert append_call["effective_panelspec"] == panel_spec
+
+
+class TestEffectivePanelspecChaining:
+    """Overrides chain across regeneration calls via the effective spec."""
+
+    def test_shot_type_chains_to_next_revise(self, config, panel_spec, tmp_path):
+        orch = _make_orch_with_real_store(config, tmp_path)
+        panel_id = panel_spec["panel_id"]
+        _seed_record(orch.provenance, panel_id, 1, panel_spec)
+
+        # Attempt 2: regenerate with a shot-type override
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"shot_type": "dutch_angle"},
+            call_llm=mock_call_llm,
+        )
+        records = orch.provenance.read_all(panel_id)
+        assert records[-1]["effective_panelspec"]["shot_type"] == "dutch_angle"
+
+        # Attempt 3: revise with feedback only — must inherit dutch_angle
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"feedback": "darker mood"},
+            call_llm=mock_call_llm,
+        )
+        records = orch.provenance.read_all(panel_id)
+        assert records[-1]["effective_panelspec"]["shot_type"] == "dutch_angle"
+
+        # And the compiler actually used the chained value
+        gen_request = orch.backend.generate.call_args[0][0]
+        assert "dutch_angle" in gen_request.prompt
+
+    def test_new_override_replaces_chained_value(self, config, panel_spec, tmp_path):
+        orch = _make_orch_with_real_store(config, tmp_path)
+        panel_id = panel_spec["panel_id"]
+        _seed_record(orch.provenance, panel_id, 1, panel_spec)
+
+        # Chain a shot_type, then explicitly override it with a different one
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"shot_type": "dutch_angle"},
+            call_llm=mock_call_llm,
+        )
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"shot_type": "low_angle"},
+            call_llm=mock_call_llm,
+        )
+        records = orch.provenance.read_all(panel_id)
+        assert records[-1]["effective_panelspec"]["shot_type"] == "low_angle"
+
+    def test_revert_to_disk_value_via_explicit_override(self, config, panel_spec, tmp_path):
+        """Restating the disk value reverts a chained override."""
+        orch = _make_orch_with_real_store(config, tmp_path)
+        panel_id = panel_spec["panel_id"]
+        _seed_record(orch.provenance, panel_id, 1, panel_spec)
+        disk_shot = panel_spec["shot_type"]
+
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"shot_type": "dutch_angle"},
+            call_llm=mock_call_llm,
+        )
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"shot_type": disk_shot},
+            call_llm=mock_call_llm,
+        )
+        records = orch.provenance.read_all(panel_id)
+        assert records[-1]["effective_panelspec"]["shot_type"] == disk_shot
+
+    def test_from_attempt_branches_from_specific_spec(self, config, panel_spec, tmp_path):
+        """--from-attempt N chains from N's effective spec, not the latest."""
+        orch = _make_orch_with_real_store(config, tmp_path)
+        panel_id = panel_spec["panel_id"]
+
+        spec_a = dict(panel_spec)
+        spec_a["shot_type"] = "wide"
+        spec_b = dict(panel_spec)
+        spec_b["shot_type"] = "dutch_angle"
+        _seed_record(orch.provenance, panel_id, 1, spec_a)
+        _seed_record(orch.provenance, panel_id, 2, spec_b)
+
+        # Branch from attempt 1, not the latest (attempt 2)
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"feedback": "warmer"},
+            call_llm=mock_call_llm,
+            from_attempt=1,
+        )
+        records = orch.provenance.read_all(panel_id)
+        assert records[-1]["effective_panelspec"]["shot_type"] == "wide"
+
+    def test_replay_selects_references_from_effective_spec(self, config, panel_spec, tmp_path):
+        """Replay (no flags) re-selects reference images from the effective spec."""
+        orch = _make_orch_with_real_store(config, tmp_path)
+        panel_id = panel_spec["panel_id"]
+
+        # Effective spec where the character's refs have been swapped
+        # (as costume re-resolution would produce)
+        swapped = json.loads(json.dumps(panel_spec))  # deep copy
+        for char in swapped.get("characters", []):
+            char["references"] = [{
+                "ref_id": "ref_variant",
+                "file": f"{char['character_id']}/ref_variant.png",
+                "purpose": "front_neutral",
+                "priority": 1,
+                "costume": "variant",
+                "notes": "Variant reference.",
+            }]
+        _seed_record(orch.provenance, panel_id, 1, swapped)
+
+        orch.regenerate_panel(panel_spec, overrides={})  # replay
+
+        gen_request = orch.backend.generate.call_args[0][0]
+        ref_files = [r["file"] for r in gen_request.reference_images]
+        assert any("ref_variant" in f for f in ref_files)
+
+    def test_old_records_without_field_fall_back_to_disk(self, config, panel_spec, tmp_path):
+        """Pre-feature records (no effective_panelspec) use the disk spec."""
+        orch = _make_orch_with_real_store(config, tmp_path)
+        panel_id = panel_spec["panel_id"]
+        # spec=None → seed a record WITHOUT the effective_panelspec field
+        _seed_record(orch.provenance, panel_id, 1, None)
+
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"feedback": "warmer"},
+            call_llm=mock_call_llm,
+        )
+        records = orch.provenance.read_all(panel_id)
+        assert records[-1]["effective_panelspec"] == panel_spec
+
+
+class TestCostumeDiffFrom:
+    """_compute_diff reports the branch spec's actual costume variant."""
+
+    def test_costume_diff_from_default(self, panel_spec):
+        diff = Orchestrator._compute_diff(panel_spec, {"costume": "morning_routine"})
+        assert diff["costume"] == {"from": "default", "to": "morning_routine"}
+
+    def test_costume_diff_from_chained_variant(self, panel_spec):
+        patched = json.loads(json.dumps(panel_spec))
+        for char in patched.get("characters", []):
+            char["costume_variant"] = "morning_routine"
+        diff = Orchestrator._compute_diff(patched, {"costume": "roadwork"})
+        assert diff["costume"] == {"from": "morning_routine", "to": "roadwork"}
