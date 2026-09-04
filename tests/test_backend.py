@@ -126,7 +126,13 @@ class TestBackendIntegration:
             spec = json.load(f)
 
         compiler = PromptCompiler(config)
-        result = compiler.compile(spec)
+        result = compiler.compile(
+            spec,
+            call_llm=lambda model, system_prompt, user_prompt: (
+                "Alyssa sits on the edge of her bed in first light, venetian "
+                "blinds striping the room in gold."
+            ),
+        )
 
         assert result.model is not None
         assert result.prompt is not None
