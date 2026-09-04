@@ -1,0 +1,109 @@
+{
+  "panel_id": "c01_pg1_l01_pn01",
+  "chapter_id": 1,
+  "page_id": "1_1",
+  "layout_id": "layout_01",
+  "position": 1,
+  "panel_geometry": {
+    "x": 30,
+    "y": 30,
+    "width_px": 2420,
+    "height_px": 1714
+  },
+  "characters": [
+    {
+      "character_id": "alyssa",
+      "display_name": "Alyssa",
+      "prompt_tokens": {
+        "identity": "Alyssa, a strikingly beautiful blonde woman with a calm, centered personality and large, observant eyes. Currently wearing: Off-white technical jacket with distinctive clasps and a futuristic bright-blue tab on the collar; stone-colored cargo pants and comfortable, lightweight hiking boots.",
+        "exclusions": [
+          "no alternate hair colors"
+        ]
+      },
+      "costume_variant": "default",
+      "references": [
+        {
+          "ref_id": "ref_front",
+          "file": "alyssa/ref_front.png",
+          "purpose": "front_neutral",
+          "priority": 1,
+          "costume": "default",
+          "notes": "Full-body front view, neutral expression, default costume."
+        },
+        {
+          "ref_id": "ref_three_quarter",
+          "file": "alyssa/ref_three_quarter.png",
+          "purpose": "three_quarter",
+          "priority": 2,
+          "costume": "default",
+          "notes": "Three-quarter view showing braid and thoughtful expression."
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "environment_id": "alyssa_apartment",
+    "display_name": "Apartment Interior",
+    "description": "Neat, comfortable studio apartment. Well-lit, especially by the morning sunlight.",
+    "prompt_tokens": {
+      "identity": "comfortable well-lit apartment interior, warm light, contemporary earthtone-neutral furniture, fresh decor, venetian blinds on a large window, beautiful in the morning light",
+      "exclusions": [
+        "no dirt or grime",
+        "no mess, clutter, or neglect",
+        "no rot or decay"
+      ]
+    },
+    "references": [
+      {
+        "ref_id": "ref_establishing",
+        "file": "alyssa_apartment/ref_establishing.png",
+        "purpose": "establishing_shot",
+        "priority": 1,
+        "notes": "Wide shot of the apartment interior with beautiful calm light."
+      },
+      {
+        "ref_id": "ref_kitchen",
+        "file": "alyssa_apartment/ref_kitchen.png",
+        "purpose": "detail",
+        "priority": 2,
+        "notes": "Shot of the apartment interior, focused on the kitchen area."
+      }
+    ]
+  },
+  "shot_type": "wide",
+  "mood": "calm anticipation",
+  "description": "Wide view of the apartment in first light, venetian blinds striping the room in gold as Alyssa sleeps.",
+  "continuity": {
+    "time_of_day": "dawn",
+    "location": "alyssa_apartment"
+  },
+  "scene_id": "1",
+  "continuity_narrative": "Dawn in Alyssa's apartment; the day has not yet begun.",
+  "style": {
+    "style_id": "new_bridgeton_vivid",
+    "visual_style": {
+      "label": "graphic novel",
+      "description": "High-contrast, stylized graphic novel illustration.",
+      "prompt_tokens": "graphic novel illustration style, high contrast, bold ink lines, deep dramatic shadows, stylized, full palette with selective color combos, cinematic framing. Predominantly vivid and engaging, complementary, with specific colors identifying canonical character features and outfits. Color tells a rich, vibrant story in this work.. bold, deliberate ink lines with visible weight variation. hard shadows with minimal midtone graduation",
+      "color_palette": "Vivid, complementary.",
+      "line_weight": "bold, deliberate ink lines",
+      "shading_approach": "hard shadows"
+    },
+    "forbidden_elements": [
+      "no photorealistic rendering",
+      "no soft watercolor effects",
+      "no anime or manga style",
+      "no text, letters, numbers, or symbols of any kind",
+      "no speech bubbles",
+      "no captions",
+      "no watermarks",
+      "no greenery",
+      "no clear sky",
+      "no alternate hair colors",
+      "no vacant or vapid expressions"
+    ],
+    "lighting_defaults": "dramatic side lighting"
+  },
+  "panel_seed": "48",
+  "compiler_version": "1.0.0"
+}

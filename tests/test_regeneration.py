@@ -39,41 +39,20 @@ def config():
     return load_config(str(PROJECT_ROOT))
 
 
-def _find_panelspecs() -> list[Path]:
-    """Find all .panelspec.json files in the output directory."""
-    output_dir = PROJECT_ROOT / "output"
-    if not output_dir.exists():
-        return []
-    return sorted(output_dir.glob("*.panelspec.json"))
-
-
-def _find_multi_char_spec() -> Path | None:
-    """Find a PanelSpec with more than one character, if one exists."""
-    for path in _find_panelspecs():
-        with path.open() as f:
-            spec = json.load(f)
-        if len(spec.get("characters", [])) >= 2:
-            return path
-    return None
+FIXTURES_DIR = PROJECT_ROOT / "tests" / "fixtures"
 
 
 @pytest.fixture
 def panel_spec():
-    """Load any available PanelSpec from the output directory."""
-    specs = _find_panelspecs()
-    if not specs:
-        pytest.skip("No PanelSpecs in output/ — run the Parser first")
-    with specs[0].open() as f:
+    """Single-character fixture PanelSpec (alyssa, default costume)."""
+    with (FIXTURES_DIR / "fixture_single_char.panelspec.json").open() as f:
         return json.load(f)
 
 
 @pytest.fixture
 def multi_char_spec():
-    """Load a PanelSpec with multiple characters, if available."""
-    path = _find_multi_char_spec()
-    if path is None:
-        pytest.skip("No multi-character PanelSpec found — need a panel with 2+ characters")
-    with path.open() as f:
+    """Multi-character fixture PanelSpec (alyssa + hood)."""
+    with (FIXTURES_DIR / "fixture_multi_char.panelspec.json").open() as f:
         return json.load(f)
 
 
@@ -200,16 +179,28 @@ class TestPanelSpecPatching:
         assert patched is not panel_spec  # different object
 
     def test_costume_patch_filters_refs(self, orchestrator, multi_char_spec):
+        """Costume patch updates variants and refs for characters that have
+        the variant; characters without it fall back to default (per
+        DESIGN.md costume design)."""
         overrides = {"costume": "morning_routine"}
         patched = orchestrator._apply_panelspec_patches(multi_char_spec, overrides)
-        # Characters should have refs resolved from source YAML for the
-        # morning_routine variant (re-resolved via Wardrobe).
-        for char in patched.get("characters", []):
-            # costume_variant should be updated
-            assert char["costume_variant"] == "morning_routine"
-            # References should be for the morning_routine costume
-            for ref in char.get("references", []):
-                assert ref.get("costume") == "morning_routine"
+
+        # alyssa has the morning_routine variant: updated, refs filtered
+        alyssa = next(
+            c for c in patched["characters"] if c["character_id"] == "alyssa"
+        )
+        assert alyssa["costume_variant"] == "morning_routine"
+        assert alyssa["references"], "morning_routine refs should exist"
+        for ref in alyssa["references"]:
+            assert ref.get("costume") == "morning_routine"
+
+        # hood has no morning_routine variant: falls back to default
+        hood = next(
+            c for c in patched["characters"] if c["character_id"] == "hood"
+        )
+        assert hood["costume_variant"] == "default"
+        for ref in hood["references"]:
+            assert ref.get("costume") == "default"
 
     def test_non_destructive(self, orchestrator, panel_spec):
         """Original PanelSpec is never modified."""

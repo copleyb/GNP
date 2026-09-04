@@ -118,9 +118,9 @@ class TestBackendIntegration:
         """A compiled GenerationRequest should have all params the backend needs."""
         import json
 
-        spec_path = PROJECT_ROOT / "output" / "c01_pg1_l02_pn01.panelspec.json"
-        if not spec_path.exists():
-            pytest.skip("PanelSpec not found — run the Parser first")
+        spec_path = (
+            PROJECT_ROOT / "tests" / "fixtures" / "fixture_single_char.panelspec.json"
+        )
 
         with spec_path.open() as f:
             spec = json.load(f)

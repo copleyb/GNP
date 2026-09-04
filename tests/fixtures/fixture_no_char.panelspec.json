@@ -1,0 +1,72 @@
+{
+  "panel_id": "c01_pg3_l02_pn01",
+  "chapter_id": 1,
+  "page_id": "3_2",
+  "layout_id": "layout_01",
+  "position": 1,
+  "panel_geometry": {
+    "x": 30,
+    "y": 30,
+    "width_px": 2420,
+    "height_px": 1714
+  },
+  "characters": [],
+  "environment": {
+    "environment_id": "city_bar_interior",
+    "display_name": "Bar Interior",
+    "description": "Traditional inner-city dive bar.",
+    "prompt_tokens": {
+      "identity": "dingy inner-city dive bar, grubby light, solid well-used dark wood furniture, peeling wallpaper with kitsch decor, dust motes in the light, a place people come to drink alone",
+      "exclusions": [
+        "no bright colours",
+        "no cheap or flimsy furniture",
+        "nothing shiny or new"
+      ]
+    },
+    "references": [
+      {
+        "ref_id": "ref_establishing",
+        "file": "city_bar_interior/ref_establishing.png",
+        "purpose": "establishing_shot",
+        "priority": 1,
+        "notes": "Shot of the bar interior with dingy light."
+      }
+    ]
+  },
+  "shot_type": "wide",
+  "mood": "somber",
+  "description": "The dive bar sits mostly empty in the late afternoon, one regular slumped in a corner booth.",
+  "continuity": {
+    "time_of_day": "late afternoon",
+    "location": "city_bar_interior"
+  },
+  "scene_id": "1",
+  "continuity_narrative": "The bar waits for its evening regulars.",
+  "style": {
+    "style_id": "new_bridgeton_vivid",
+    "visual_style": {
+      "label": "graphic novel",
+      "description": "High-contrast, stylized graphic novel illustration.",
+      "prompt_tokens": "graphic novel illustration style, high contrast, bold ink lines, deep dramatic shadows, stylized, full palette with selective color combos, cinematic framing. Predominantly vivid and engaging, complementary, with specific colors identifying canonical character features and outfits. Color tells a rich, vibrant story in this work.. bold, deliberate ink lines with visible weight variation. hard shadows with minimal midtone graduation",
+      "color_palette": "Vivid, complementary.",
+      "line_weight": "bold, deliberate ink lines",
+      "shading_approach": "hard shadows"
+    },
+    "forbidden_elements": [
+      "no photorealistic rendering",
+      "no soft watercolor effects",
+      "no anime or manga style",
+      "no text, letters, numbers, or symbols of any kind",
+      "no speech bubbles",
+      "no captions",
+      "no watermarks",
+      "no greenery",
+      "no clear sky",
+      "no alternate hair colors",
+      "no vacant or vapid expressions"
+    ],
+    "lighting_defaults": "dramatic side lighting"
+  },
+  "panel_seed": "17",
+  "compiler_version": "1.0.0"
+}

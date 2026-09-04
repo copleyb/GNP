@@ -43,44 +43,31 @@ def compiler(config):
     return PromptCompiler(config)
 
 
-def _find_panelspecs() -> list:
-    """Find all .panelspec.json files in the output directory."""
-    output_dir = PROJECT_ROOT / "output"
-    if not output_dir.exists():
-        return []
-    return sorted(output_dir.glob("*.panelspec.json"))
+FIXTURES_DIR = PROJECT_ROOT / "tests" / "fixtures"
 
 
-@pytest.fixture
-def panel_spec():
-    """Load any available PanelSpec from the output directory."""
-    specs = _find_panelspecs()
-    if not specs:
-        pytest.skip("No PanelSpecs in output/ — run the Parser first")
-    with specs[0].open() as f:
+def _load_fixture(name):
+    """Load a committed fixture PanelSpec from tests/fixtures/."""
+    with (FIXTURES_DIR / name).open() as f:
         return json.load(f)
 
 
 @pytest.fixture
+def panel_spec():
+    """Single-character fixture PanelSpec (alyssa, default costume)."""
+    return _load_fixture("fixture_single_char.panelspec.json")
+
+
+@pytest.fixture
 def multi_char_spec():
-    """Load a PanelSpec with multiple characters, if available."""
-    for path in _find_panelspecs():
-        with path.open() as f:
-            spec = json.load(f)
-        if len(spec.get("characters", [])) >= 2:
-            return spec
-    pytest.skip("No multi-character PanelSpec found")
+    """Multi-character fixture PanelSpec (alyssa + hood)."""
+    return _load_fixture("fixture_multi_char.panelspec.json")
 
 
 @pytest.fixture
 def no_char_spec():
-    """Load a PanelSpec with no characters (environment only), if available."""
-    for path in _find_panelspecs():
-        with path.open() as f:
-            spec = json.load(f)
-        if len(spec.get("characters", [])) == 0:
-            return spec
-    pytest.skip("No zero-character PanelSpec found")
+    """Zero-character fixture PanelSpec (environment only)."""
+    return _load_fixture("fixture_no_char.panelspec.json")
 
 
 # A mock LLM callable that returns a fixed scene prompt
