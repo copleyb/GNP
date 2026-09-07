@@ -524,13 +524,23 @@ class Orchestrator:
                     output_path=None,
                     error="Branch record has no stored output file.",
                 )
+            # The provenance path is a snapshot of where the PNG lived when
+            # the record was written. _write_output moves prior attempts to
+            # output/archive/ when a newer attempt is written, so older
+            # sources live there now. Fall back to the archive location
+            # before failing; the surgical sub-record stores the resolved
+            # path so it reflects what was actually sent to the backend.
             if not (self.project_root / source_file).exists():
-                return PanelResult(
-                    panel_id=panel_id,
-                    status="failure",
-                    output_path=None,
-                    error=f"Surgical edit source not found on disk: {source_file}",
-                )
+                archived = f"output/archive/{Path(source_file).name}"
+                if (self.project_root / archived).exists():
+                    source_file = archived
+                else:
+                    return PanelResult(
+                        panel_id=panel_id,
+                        status="failure",
+                        output_path=None,
+                        error=f"Surgical edit source not found on disk: {source_file}",
+                    )
             # Describe the edit source for compiler layer [8]: prefer the
             # branch record's scene prompt (what the image actually shows);
             # fall back to the branch PanelSpec's description for legacy

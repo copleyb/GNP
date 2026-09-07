@@ -1425,6 +1425,30 @@ class TestSurgicalRegeneratePanel:
         assert result.status == "failure"
         assert "not found on disk" in result.error
 
+    def test_surgical_archived_source_resolves(self, config, panel_spec, tmp_path):
+        """Edit source moved to output/archive/ by later attempts — resolves."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+        # Simulate archiving: the file only exists in output/archive/ now
+        (tmp_path / "output" / "c01_pg1_l02_pn01_attempt_001.png").unlink()
+        (tmp_path / "output" / "archive").mkdir(exist_ok=True)
+        (tmp_path / "output" / "archive" / "c01_pg1_l02_pn01_attempt_001.png").write_bytes(b"png")
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            call_llm=mock_call_llm,
+        )
+
+        assert result.status == "success"
+        gr = mock_backend.generate.call_args[0][0]
+        # Resolved archive path is what the backend receives
+        assert gr.reference_images[0]["file"] == "output/archive/c01_pg1_l02_pn01_attempt_001.png"
+        # Provenance records the resolved path actually used
+        written = orch.provenance.append.call_args[0][0]
+        assert written["surgical"]["source_file"] == "output/archive/c01_pg1_l02_pn01_attempt_001.png"
+
     def test_surgical_record_without_output_file_fails(self, config, panel_spec, tmp_path):
         """Legacy record without outcome.output_file — graceful failure."""
         record = dict(self.SURGICAL_RECORD)

@@ -937,7 +937,7 @@ Surgical mode is a modifier, not a category: category inference is untouched (`-
 - `--surgical` requires an edit instruction (`--feedback`, `--scene-prompt`, or a PanelSpec override) — it only composes with the revise/regenerate categories. Replay/reroll carry no change to apply.
 - `--surgical` cannot combine with `--fresh-prompt` (full re-description contradicts minimal edit).
 - `--surgical` cannot combine with `--costume` (v2): a costume change needs the new variant's reference image, which the edit source — depicting the old costume — cannot provide. Use a full regeneration for costume changes.
-- The edit source PNG must exist on disk; missing files (archived/cleaned attempts) fail gracefully.
+- The edit source PNG must exist on disk. Older attempts live in `output/archive/` (moved there when newer attempts are written) — source resolution falls back to the archive location automatically, so `--from-attempt N` works on any historical attempt. Only genuinely missing files fail gracefully. The surgical provenance sub-record stores the resolved path actually sent to the backend.
 
 Provenance: surgical attempts record a `surgical` sub-record (`source_attempt`, `source_file`, `reference_mode: previous_output_only`). The normal `reference_selection` sub-record is omitted (selection was bypassed). `effective_panelspec` chaining is unchanged.
 
