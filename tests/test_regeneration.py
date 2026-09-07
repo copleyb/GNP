@@ -1198,3 +1198,262 @@ class TestCostumeDiffEnrichment:
         append_call = orch.provenance.append.call_args[0][0]
         ctx = append_call["scene_prompt"]["preservation_context"]
         assert "to_description" in ctx["change_summary"]["costume"]
+
+
+# -- Surgical edit mode (item 20) -------------------------------------------
+
+MOCK_SURGICAL_CONTEXT = {
+    "source_file": "output/c01_pg1_l02_pn01_attempt_001.png",
+    "source_attempt": 1,
+    "source_description": "A woman with a braid standing at a window.",
+}
+
+
+class TestSurgicalCompile:
+    """Compiler-level tests for surgical mode (--surgical)."""
+
+    def test_surgical_directive_prepended(self, config, panel_spec):
+        """Layer [0]: prompt starts with the fixed SURGICAL EDIT directive."""
+        compiler = PromptCompiler(config)
+        gr = compiler.compile(
+            panel_spec, call_llm=mock_call_llm,
+            surgical_context=MOCK_SURGICAL_CONTEXT,
+        )
+        assert gr.prompt.startswith("SURGICAL EDIT:")
+        assert "Do not re-compose" in gr.prompt
+
+    def test_surgical_layer8_describes_edit_source(self, config, panel_spec):
+        """Layer [8] in surgical mode describes the edit-source image."""
+        compiler = PromptCompiler(config)
+        gr = compiler.compile(
+            panel_spec, call_llm=mock_call_llm,
+            surgical_context=MOCK_SURGICAL_CONTEXT,
+        )
+        assert "EDIT SOURCE" in gr.prompt
+        assert "A woman with a braid standing at a window." in gr.prompt
+
+    def test_surgical_single_sole_reference(self, config, panel_spec):
+        """Surgical mode sends exactly one reference image: the edit source."""
+        compiler = PromptCompiler(config)
+        gr = compiler.compile(
+            panel_spec, call_llm=mock_call_llm,
+            surgical_context=MOCK_SURGICAL_CONTEXT,
+        )
+        assert len(gr.reference_images) == 1
+        assert gr.reference_images[0] == {
+            "ref_id": "surgical_source",
+            "file": "output/c01_pg1_l02_pn01_attempt_001.png",
+            "role": "surgical",
+        }
+
+    def test_surgical_bypasses_normal_selection(self, config, panel_spec):
+        """Character/environment reference selection is bypassed entirely."""
+        compiler = PromptCompiler(config)
+        gr = compiler.compile(
+            panel_spec, call_llm=mock_call_llm,
+            surgical_context=MOCK_SURGICAL_CONTEXT,
+        )
+        assert gr._reference_selections == []
+        roles = {r["role"] for r in gr.reference_images}
+        assert "character" not in roles
+        assert "environment" not in roles
+
+    def test_non_surgical_prompt_unchanged(self, config, panel_spec):
+        """Without surgical_context, prompt and references are exactly as before."""
+        compiler = PromptCompiler(config)
+        plain = compiler.compile(panel_spec, call_llm=mock_call_llm)
+        assert "SURGICAL EDIT" not in plain.prompt
+        assert "EDIT SOURCE" not in plain.prompt
+        # Normal character reference descriptions still present
+        assert "Reference image" in plain.prompt
+        assert any(r["role"] == "character" for r in plain.reference_images)
+
+
+class TestSurgicalRegeneratePanel:
+    """Orchestrator-level tests for --surgical on regenerate_panel()."""
+
+    SURGICAL_RECORD = {
+        "attempt_number": 1,
+        "outcome": {
+            "output_file": "output/c01_pg1_l02_pn01_attempt_001.png",
+        },
+        "scene_prompt": {"output": "Prior scene prompt describing the panel."},
+        "effective_panelspec": None,  # patched per-test
+    }
+
+    def _make_orch(self, config, tmp_path, record):
+        """Orchestrator with mocked backend/provenance and a real source file."""
+        mock_backend = make_mock_backend()
+        orch = Orchestrator(config)
+        orch.backend = mock_backend
+        orch.provenance = MagicMock()
+        orch.provenance.get_latest_record.return_value = record
+        orch.provenance.get_latest_attempt_number.return_value = 1
+        orch._write_output = MagicMock(return_value=tmp_path / "output.png")
+        orch._post_process = MagicMock(return_value=((1024, 1024), (1024, 1024)))
+        orch._next_attempt_number = MagicMock(return_value=2)
+        # Point project_root at tmp_path and create the edit-source PNG there
+        orch.project_root = tmp_path
+        (tmp_path / "output").mkdir(exist_ok=True)
+        (tmp_path / "output" / "c01_pg1_l02_pn01_attempt_001.png").write_bytes(b"png")
+        return orch, mock_backend
+
+    def test_surgical_revise_success(self, config, panel_spec, tmp_path):
+        """--surgical --feedback: revise category with edit source as sole ref."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            call_llm=mock_call_llm,
+        )
+
+        assert result.status == "success"
+        gr = mock_backend.generate.call_args[0][0]
+        assert gr.prompt.startswith("SURGICAL EDIT:")
+        assert len(gr.reference_images) == 1
+        assert gr.reference_images[0]["file"] == "output/c01_pg1_l02_pn01_attempt_001.png"
+        assert gr.reference_images[0]["role"] == "surgical"
+
+    def test_surgical_provenance_fields(self, config, panel_spec, tmp_path):
+        """Provenance record carries the surgical sub-record."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, _ = self._make_orch(config, tmp_path, record)
+
+        orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            call_llm=mock_call_llm,
+        )
+
+        written = orch.provenance.append.call_args[0][0]
+        assert written["surgical"] == {
+            "source_attempt": 1,
+            "source_file": "output/c01_pg1_l02_pn01_attempt_001.png",
+            "reference_mode": "previous_output_only",
+        }
+        # Normal reference_selection sub-record is absent (selection bypassed)
+        assert "reference_selection" not in written
+
+    def test_surgical_from_attempt_source(self, config, panel_spec, tmp_path):
+        """--from-attempt N picks that attempt's output as the edit source."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+        orch.provenance.get_record_by_attempt.return_value = record
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            from_attempt=1,
+            call_llm=mock_call_llm,
+        )
+
+        assert result.status == "success"
+        gr = mock_backend.generate.call_args[0][0]
+        assert gr.reference_images[0]["file"] == "output/c01_pg1_l02_pn01_attempt_001.png"
+
+    def test_surgical_bare_fails(self, config, panel_spec, tmp_path):
+        """--surgical alone has nothing to edit — hard fail."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+
+        result = orch.regenerate_panel(panel_spec, overrides={"surgical": True})
+
+        assert result.status == "failure"
+        assert "requires an edit instruction" in result.error
+        assert not mock_backend.generate.called
+
+    def test_surgical_reroll_flags_fail(self, config, panel_spec, tmp_path):
+        """--surgical with backend-only flags (reroll) has no change to apply."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+
+        result = orch.regenerate_panel(panel_spec, overrides={"surgical": True, "seed": 42})
+
+        assert result.status == "failure"
+        assert "requires an edit instruction" in result.error
+
+    def test_surgical_fresh_prompt_fails(self, config, panel_spec, tmp_path):
+        """--surgical --fresh-prompt contradicts surgical semantics."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "fresh_prompt": True},
+        )
+
+        assert result.status == "failure"
+        assert "--fresh-prompt" in result.error
+
+    def test_surgical_costume_fails(self, config, panel_spec, tmp_path):
+        """--surgical --costume deferred to v2 — hard fail with guidance."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "costume": "morning_routine"},
+        )
+
+        assert result.status == "failure"
+        assert "--costume" in result.error
+        assert "full regeneration" in result.error
+
+    def test_surgical_missing_source_file_fails(self, config, panel_spec, tmp_path):
+        """Edit source PNG not on disk — graceful failure."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+        # Delete the source file after orchestrator setup
+        (tmp_path / "output" / "c01_pg1_l02_pn01_attempt_001.png").unlink()
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            call_llm=mock_call_llm,
+        )
+
+        assert result.status == "failure"
+        assert "not found on disk" in result.error
+
+    def test_surgical_record_without_output_file_fails(self, config, panel_spec, tmp_path):
+        """Legacy record without outcome.output_file — graceful failure."""
+        record = dict(self.SURGICAL_RECORD)
+        record["effective_panelspec"] = panel_spec
+        record["outcome"] = {}
+        orch, mock_backend = self._make_orch(config, tmp_path, record)
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            call_llm=mock_call_llm,
+        )
+
+        assert result.status == "failure"
+        assert "no stored output file" in result.error
+
+    def test_surgical_no_prior_record_fails(self, config, panel_spec, tmp_path):
+        """--surgical with no provenance at all — graceful failure."""
+        mock_backend = make_mock_backend()
+        orch = Orchestrator(config)
+        orch.backend = mock_backend
+        orch.provenance = MagicMock()
+        orch.provenance.get_latest_record.return_value = None
+
+        result = orch.regenerate_panel(
+            panel_spec,
+            overrides={"surgical": True, "feedback": "remove the braid artifact"},
+            call_llm=mock_call_llm,
+        )
+
+        assert result.status == "failure"
+        assert "prior attempt" in result.error

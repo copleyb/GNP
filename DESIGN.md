@@ -928,6 +928,21 @@ When the Scene Prompt Generator runs during a regeneration, the mode is determin
 
 **Effective PanelSpec preservation (per-attempt state chaining):** Every Generation Record stores `effective_panelspec` — the exact spec the attempt was compiled against (post-patch for regenerate, as-is otherwise). When a regeneration branches from an attempt (the latest by default, or a specific one via `--from-attempt N`), the Orchestrator loads that attempt's `effective_panelspec` and uses it as the base spec. New PanelSpec overrides patch on top of the branched state; the structured diff's "from" values are computed against it; replay/reroll reference selection uses it. This makes each record fully self-contained and lets PanelSpec overrides chain across calls — the "iterate on my last change" workflow. To revert a field to its disk-PanelSpec value, restate the field explicitly (e.g. `--costume default`). Records written before this feature (no `effective_panelspec` field) fall back to the disk PanelSpec — identical to the original behavior.
 
+**Surgical edit mode (`--surgical`):** Any `regenerate` invocation may add `--surgical`. The Orchestrator resolves the output PNG of the branch attempt (the latest, or the one selected by `--from-attempt N`) from its provenance record (`outcome.output_file`) and supplies it to gpt-image-2 as the **sole reference image** — character and environment reference selection is bypassed entirely, because the edit source already contains the characters rendered in style, in scene. Extra references would invite re-composition, the opposite of what surgical mode wants.
+
+Prompt assembly in surgical mode: a fixed **SURGICAL EDIT directive** (layer [0], prepended) instructs the model to apply only the described change and preserve composition, poses, lighting, and style in all other regions. Layers [1]-[7] are unchanged. Layer [8] is replaced with an edit-source description — the branch record's scene prompt (what the image actually shows), falling back to the branch PanelSpec's description for legacy records.
+
+Surgical mode is a modifier, not a category: category inference is untouched (`--surgical --feedback "..."` is a revise; `--surgical --description "..."` is a regenerate). Validation rules (hard-fail with a clear message):
+
+- `--surgical` requires an edit instruction (`--feedback`, `--scene-prompt`, or a PanelSpec override) — it only composes with the revise/regenerate categories. Replay/reroll carry no change to apply.
+- `--surgical` cannot combine with `--fresh-prompt` (full re-description contradicts minimal edit).
+- `--surgical` cannot combine with `--costume` (v2): a costume change needs the new variant's reference image, which the edit source — depicting the old costume — cannot provide. Use a full regeneration for costume changes.
+- The edit source PNG must exist on disk; missing files (archived/cleaned attempts) fail gracefully.
+
+Provenance: surgical attempts record a `surgical` sub-record (`source_attempt`, `source_file`, `reference_mode: previous_output_only`). The normal `reference_selection` sub-record is omitted (selection was bypassed). `effective_panelspec` chaining is unchanged.
+
+Without `--surgical`, all paths behave exactly as before — the flag is purely additive.
+
 ### Pipeline execution per panel
 
 ```

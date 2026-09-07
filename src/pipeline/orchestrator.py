@@ -466,6 +466,85 @@ class Orchestrator:
         if latest_record and latest_record.get("effective_panelspec"):
             branch_spec = latest_record["effective_panelspec"]
 
+        # -- Surgical edit mode (DESIGN.md §13) ----------------------------
+        # --surgical: the previous attempt's output PNG is supplied to
+        # gpt-image-2 as the sole reference image, so the model edits the
+        # existing artwork instead of re-composing from references.
+        surgical = bool(overrides.get("surgical"))
+        surgical_context: dict[str, Any] | None = None
+        if surgical:
+            # Surgical edits need a change to apply. Replay/reroll carry
+            # none, so --surgical only composes with revise/regenerate.
+            if category not in ("revise", "regenerate"):
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error=(
+                        "--surgical requires an edit instruction: --feedback, "
+                        "--scene-prompt, or a PanelSpec override "
+                        "(--shot-type/--mood/--description)."
+                    ),
+                )
+            # --fresh-prompt contradicts surgical (full re-description vs.
+            # minimal edit) and --costume changes need the new variant's
+            # reference image, which the edit source cannot provide.
+            if overrides.get("fresh_prompt"):
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error="--surgical cannot be combined with --fresh-prompt.",
+                )
+            if overrides.get("costume"):
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error=(
+                        "--surgical cannot be combined with --costume "
+                        "(the edit source depicts the old costume). Use a "
+                        "full regeneration for costume changes."
+                    ),
+                )
+            # Resolve the edit source: the output PNG of the branch record
+            # (latest, or the one selected by --from-attempt).
+            if latest_record is None:
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error="--surgical requires a prior attempt to edit.",
+                )
+            source_file = latest_record.get("outcome", {}).get("output_file")
+            if not source_file:
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error="Branch record has no stored output file.",
+                )
+            if not (self.project_root / source_file).exists():
+                return PanelResult(
+                    panel_id=panel_id,
+                    status="failure",
+                    output_path=None,
+                    error=f"Surgical edit source not found on disk: {source_file}",
+                )
+            # Describe the edit source for compiler layer [8]: prefer the
+            # branch record's scene prompt (what the image actually shows);
+            # fall back to the branch PanelSpec's description for legacy
+            # records that predate scene_prompt provenance.
+            source_description = (
+                latest_record.get("scene_prompt", {}).get("output")
+                or branch_spec.get("description", "")
+            )
+            surgical_context = {
+                "source_file": source_file,
+                "source_attempt": latest_record.get("attempt_number"),
+                "source_description": source_description,
+            }
+
         # The effective spec this attempt will be compiled against.
         # Defaults to the branch spec; the regenerate path replaces it
         # with the patched spec below.
@@ -565,6 +644,7 @@ class Orchestrator:
                 user_feedback=user_feedback,
                 call_llm=call_llm_for_gen,
                 preservation_context=preservation_context,
+                surgical_context=surgical_context,
             )
 
         # -- Apply backend overrides for revise/regenerate (config defaults) --
@@ -628,6 +708,7 @@ class Orchestrator:
             scene_prompt_mode=scene_prompt_mode,
             preservation_context=preservation_context,
             effective_panelspec=effective_spec,
+            surgical_context=surgical_context,
         )
 
         return PanelResult(
@@ -823,6 +904,7 @@ class Orchestrator:
         scene_prompt_mode: str | None = None,
         preservation_context: dict[str, Any] | None = None,
         effective_panelspec: dict[str, Any] | None = None,
+        surgical_context: dict[str, Any] | None = None,
     ) -> None:
         """Append a Generation Record to the Provenance Store."""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -869,6 +951,15 @@ class Orchestrator:
         # branching from this attempt reconstructs its full state.
         if effective_panelspec is not None:
             record["effective_panelspec"] = effective_panelspec
+
+        # Surgical edit metadata: the edit-source image used as the
+        # sole reference (character/environment selection is bypassed).
+        if surgical_context is not None:
+            record["surgical"] = {
+                "source_attempt": surgical_context.get("source_attempt"),
+                "source_file": surgical_context.get("source_file"),
+                "reference_mode": "previous_output_only",
+            }
 
         # Add scene prompt sub-record if available
         if hasattr(gen_request, "_scene_prompt") and gen_request._scene_prompt:

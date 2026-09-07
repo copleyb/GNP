@@ -705,6 +705,41 @@ class PromptCompiler:
 
         return selections, selection_records
 
+    # -- Surgical edit mode -------------------------------------------------
+
+    SURGICAL_DIRECTIVE = (
+        "SURGICAL EDIT: You are editing the existing panel artwork provided "
+        "as the first reference image. Apply ONLY the changes described in "
+        "the scene description below. Do not re-compose, re-frame, or "
+        "re-imagine the panel. Preserve the existing composition, character "
+        "positions and poses, lighting, background details, and art style "
+        "exactly in all regions not covered by the edit."
+    )
+
+    def _layer_surgical_directive(self) -> str:
+        """Layer [0]: Surgical edit directive (fixed string, surgical mode only)."""
+        return self.SURGICAL_DIRECTIVE
+
+    def _layer_surgical_reference(self, surgical_context: dict[str, Any]) -> str:
+        """Layer [8] in surgical mode: describe the edit-source image.
+
+        The backend receives exactly one reference image — the previous
+        attempt's finished output. The model must be told it is the base
+        artwork to edit, not a style/character reference.
+        """
+        description = (surgical_context.get("source_description") or "").strip()
+        lines = [
+            "Reference image 1 (EDIT SOURCE): The existing finished artwork "
+            "for this panel — the image you must edit."
+        ]
+        if description:
+            lines.append(f"It shows: {description}")
+        lines.append(
+            "Treat this as the base artwork. Apply the requested edit "
+            "precisely and leave every other region untouched."
+        )
+        return "\n".join(lines)
+
     # -- Full compilation -----------------------------------------------------
 
     def compile(
@@ -714,6 +749,7 @@ class PromptCompiler:
         user_feedback: str | None = None,
         call_llm: Any = None,
         preservation_context: dict[str, Any] | None = None,
+        surgical_context: dict[str, Any] | None = None,
     ) -> GenerationRequest:
         """
         Compile a PanelSpec into a GenerationRequest.
@@ -728,6 +764,12 @@ class PromptCompiler:
             preservation_context: If provided, scene prompt runs in
                 preservation mode (revise category). Must contain
                 'prior_prompt' (str) and 'change_summary' (dict).
+            surgical_context: If provided, compile in surgical edit mode
+                (DESIGN.md §13). The previous attempt's output PNG becomes
+                the sole reference image; character/environment selection
+                is bypassed. Must contain 'source_file' (str, project-root-
+                relative path to the edit-source PNG) and 'source_description'
+                (str, what the image depicts).
 
         Returns:
             GenerationRequest ready for the Image Generation Backend.
@@ -735,7 +777,16 @@ class PromptCompiler:
         panel_id = panel_spec["panel_id"]
 
         # -- Reference image selection (before prompt assembly for layer [8]) --
-        selections, selection_records = self._select_references(panel_spec)
+        # Surgical mode: the previous attempt's output PNG is the sole
+        # reference image. Character/environment selections are bypassed
+        # entirely — the edit source already contains the characters,
+        # rendered in style, in scene. Extra references would invite
+        # re-composition, the opposite of what surgical mode wants.
+        if surgical_context:
+            selections: dict[str, list[dict[str, Any]]] = {}
+            selection_records: list[ReferenceSelection] = []
+        else:
+            selections, selection_records = self._select_references(panel_spec)
 
         # -- Layer [5]: Scene prompt (LLM call) --
         scene_prompt = self.scene_prompt_generator.generate(
@@ -751,6 +802,10 @@ class PromptCompiler:
 
         # -- Assemble the full prompt string --
         layers: list[str] = []
+
+        # [0] Surgical edit directive (surgical mode only)
+        if surgical_context:
+            layers.append(self._layer_surgical_directive())
 
         # [1] Style
         layer1 = self._layer_style(panel_spec)
@@ -785,10 +840,13 @@ class PromptCompiler:
         if layer7:
             layers.append(layer7)
 
-        # [8] Reference image descriptions
-        layer8 = self._layer_reference_descriptions(selections)
-        if layer8:
-            layers.append(layer8)
+        # [8] Reference image descriptions (edit source in surgical mode)
+        if surgical_context:
+            layers.append(self._layer_surgical_reference(surgical_context))
+        else:
+            layer8 = self._layer_reference_descriptions(selections)
+            if layer8:
+                layers.append(layer8)
 
         prompt = "\n\n".join(layers)
 
@@ -798,17 +856,26 @@ class PromptCompiler:
 
         # -- Build reference_images list for the Backend --
         reference_images: list[dict[str, str]] = []
-        for sel in selection_records:
-            # Resolve the file path relative to the project root
-            if sel.role == "character":
-                file_path = f"characters/{sel.file}"
-            else:
-                file_path = f"environments/{sel.file}"
+        if surgical_context:
+            # Sole reference: the edit-source PNG (already project-root-
+            # relative in provenance outcome format, e.g. output/x.png)
             reference_images.append({
-                "ref_id": sel.ref_id,
-                "file": file_path,
-                "role": sel.role,
+                "ref_id": "surgical_source",
+                "file": surgical_context["source_file"],
+                "role": "surgical",
             })
+        else:
+            for sel in selection_records:
+                # Resolve the file path relative to the project root
+                if sel.role == "character":
+                    file_path = f"characters/{sel.file}"
+                else:
+                    file_path = f"environments/{sel.file}"
+                reference_images.append({
+                    "ref_id": sel.ref_id,
+                    "file": file_path,
+                    "role": sel.role,
+                })
 
         # -- Build the GenerationRequest --
         ig = self.config.image_generation

@@ -332,6 +332,26 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
         print(f"Error: {', '.join(active)} are mutually exclusive. Pick at most one.")
         return 1
 
+    # Validate --surgical combinations (DESIGN.md §13)
+    surgical = getattr(args, "surgical", False)
+    if surgical:
+        conflicts = []
+        if getattr(args, "fresh_prompt", False):
+            conflicts.append("--fresh-prompt")
+        if getattr(args, "costume", None) is not None:
+            conflicts.append("--costume")
+        if conflicts:
+            print(f"Error: --surgical cannot be combined with {', '.join(conflicts)}.")
+            return 1
+        has_edit_instruction = any(
+            getattr(args, k, None) is not None
+            for k in ("feedback", "scene_prompt", "shot_type", "mood", "description")
+        )
+        if not has_edit_instruction:
+            print("Error: --surgical requires an edit instruction: --feedback, "
+                  "--scene-prompt, or a PanelSpec override (--shot-type/--mood/--description).")
+            return 1
+
     config = load_config(args.project)
 
     # Find the panel by parsing the chapter
@@ -381,6 +401,8 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
         overrides["mood"] = args.mood
     if getattr(args, "description", None) is not None:
         overrides["description"] = args.description
+    if surgical:
+        overrides["surgical"] = True
 
     from_attempt = getattr(args, "from_attempt", None)
 
@@ -393,6 +415,8 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
     print(f"  Category: {category}")
     if from_attempt is not None:
         print(f"  Branching from attempt {from_attempt}")
+    if surgical:
+        print("  Mode: surgical edit (previous output as sole reference)")
     if overrides:
         for k, v in overrides.items():
             if v is not True:
@@ -842,6 +866,8 @@ examples:
                          help="Override panel description (regenerate)")
 
     # Branching control
+    p_regen.add_argument("--surgical", action="store_true",
+                         help="Supply the previous attempt's output PNG as the sole reference image, so gpt-image-2 edits the existing artwork instead of re-composing. Requires an edit instruction (--feedback, --scene-prompt, or a PanelSpec override). Cannot combine with --fresh-prompt or --costume.")
     p_regen.add_argument("--from-attempt", type=int, metavar="N",
                          help="Branch from a specific attempt number instead of the latest")
 
