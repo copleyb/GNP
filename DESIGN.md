@@ -1208,6 +1208,16 @@ The header set is `scene_id`, optional `chapter_tag`, `title`, `narrative`, `ele
 - **Exact-coverage gate:** the Parser demands the `panels` map covers the derived panel set exactly — a missing content entry or an orphan key fails parse. The Producer's keys are checked, never trusted. Given the same file and templates, parse output is a pure function.
 - **Positional identity caveat (accepted):** inserting or deleting elements mid-scene shifts all subsequent panel IDs and severs provenance lineage. Structure edits mid-scene should be rare; the current chapter model shares this property.
 
+**Provenance keys (locked):** The Provenance Store keys every record on the *tag-free* panel ID (`s702_l01_st01_pn01`). The chapter tag never participates in identity, provenance lookups, or lineage. It appears in exactly two places:
+1. The scene source filename (`c01_s702.yaml`) — author-controlled naming for organization.
+2. As a display prefix on output image filenames (`c01_s702_l01_st01_pn01_attempt_001.png`) for browsing convenience. The Parser copies the scene's `chapter_tag` into each PanelSpec as non-identity display metadata; the provenance JSONL filename stays exactly `{panel_id}.provenance.jsonl`.
+
+Consequences:
+- **Retagging is free:** moving a scene between chapters requires no regeneration. New generations carry the new tag in filenames; previously generated PNGs keep the tag they were generated with. The tag is a generation-time display fact, not maintained state.
+- **Do not rename generated files** — that orphans the `output_file` references stored in provenance records.
+- **Scene IDs are globally unique and never reused** — identity can no longer lean on a chapter scope for uniqueness.
+- Provenance queries become scene-scoped (replacing the page-scoped queries of §13.5); chapter-level browsing is filename-prefix filtering, which is the tag's entire job.
+
 ### 16.6 Scene-space flow
 
 The Parser flows elements from the scene's top (y=0) downward using project-level gutters. PanelSpecs carry boxes in that continuous **scene space** — no page coordinates exist anywhere in the file or the Parser. Page slicing is a post-production concern, computed from snapshot geometry.
@@ -1219,5 +1229,5 @@ Panel entries and the scene header accept optional additive fields. A future fie
 ### 16.8 Remaining threads for this design phase
 
 - **Migration plan:** chapter-plan path rip-out vs. coexistence strategy — pending.
-- **Provenance key check:** confirm provenance keys on the tag-free panel ID (chapter tag excluded from the key) — pending.
+- ~~**Provenance key check**~~ — Resolved: provenance keys on the tag-free panel ID; chapter tag is display-only (scene filename + PNG prefix). See §16.5.
 - **Fill-state tooling:** largely subsumed by the exact-coverage parse gate (§16.5).
