@@ -943,6 +943,12 @@ Provenance: surgical attempts record a `surgical` sub-record (`source_attempt`, 
 
 Without `--surgical`, all paths behave exactly as before — the flag is purely additive.
 
+**Live test findings (Sep 2026 — measured, not anecdotal):** Surgical mode was validated with pixel-diff analysis against two edit types on panel c01_pg4_l01_pn02: (1) an object swap ("replace the eggplant with a soccer ball") and (2) the same swap with maximal instruction specificity ("change NOTHING else, leave all the other eggplants"). Both produced near-identical results: ~76% of pixels changed, mean pixel diff ~22.6/255, and the changed-region bbox covered the full canvas — including 12-18/255 drift in tiles nowhere near the edit target. Composition, vendor inventory, color grading, and framing all shifted; only the requested edit reliably landed.
+
+**Interpretation:** gpt-image-2's `images.edit()` endpoint *without a mask* treats the entire canvas as fair game. The text-level SURGICAL EDIT directive has no enforcing power — instruction specificity does not reduce drift (the vague and explicit tests measured the same). What `--surgical` actually delivers is **anchored regeneration**: a re-generation grounded in the prior attempt's actual pixels, with visibly stronger continuity than text-only preservation mode, but not pixel preservation. This is still useful — it's the strongest continuity tool in the current regeneration arsenal — but "surgical" is an aspirational name, not a description of current behavior.
+
+**Path to true surgical editing (future work):** Region-constrained edits require passing a mask (or bounding box) to `images.edit()` so the API-level contract restricts where the model may re-render. Open design questions: mask source (manual region selection in a future GUI, or vision-model-generated masks from a natural-language region description), CLI syntax for specifying the region, mask provenance in Generation Records, and whether `--costume` (v2) unlocks once masks exist (a masked costume change could swap garments without recomposition). Tracked as TODO item 24.
+
 ### Pipeline execution per panel
 
 ```
