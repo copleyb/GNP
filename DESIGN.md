@@ -1262,3 +1262,29 @@ Panel entries and the scene header accept optional additive fields. A future fie
 **Tests:** `tests/test_scene_parser.py` — 50 offline tests (registry, schema, references, derivation/coverage, geometry edge cases via a test-only menu, scene-space flow math, emission, determinism, downstream aspect-ratio compatibility). No LLM calls. Full suite: 302 passed.
 
 **Next:** Phase 2 — Scene Producer (`scene_producer.py`, mockable) and scene-scoped CLI commands.
+
+### 16.11 Phase 2 design — Scene Producer (LOCKED, Sep 2026)
+
+**Reframe:** the user owns STRUCTURE (the elements list), the LLM owns CONTENT. The hardest failure mode of the scene format — an LLM choosing elements *and* emitting panel keys that must exactly match its own choice — is designed out: with elements as human input, the panel ID space is fully computable before any LLM call.
+
+**The input file** (`scene_inputs/c01_s702.yaml`, the v1 "UI"): `scene_id`, `chapter_tag`, `title`, `synopsis`, `elements[]` (the scene file's elements list, verbatim). No hints, no environment steering — the LLM picks environments and characters from the project roster, as the chapter producer does. North star for any future UI: the user provides a list of desired elements and a synopsis; the producer does the rest.
+
+**Two-stage LLM process** (per scene; mockable via injected `call_llm`, like the chapter producer):
+
+**Stage 1 — Chunker (one call, whole synopsis).** Input: synopsis + the elements list WITH per-element panel counts (from the Template Registry — e.g. "element 1: l_quad, 4 panels"). Output: `{narrative, chunks[N]}` in one structured call.
+- The narrative is authored HERE, not in stage 2: it is the only call that sees the whole synopsis, and chunking IS narrative thinking. Per-fragment authorship would produce concatenation seams in prose meant to be one coherent storyboard (§16.4 header field).
+- Chunks map 1:1 to elements; chunk size should track panel count so story density allocates with pacing, not against it.
+
+**Stage 2 — Panel content (one call per element, SEQUENTIAL, in element order).** Input: the stage-1 narrative (shared backbone, resets every call — no accumulating telephone-game context), the element's synopsis chunk, and a WHERE-WE-LEFT-OFF handoff block. Output: an ORDERED ARRAY of per-panel content — description, characters (id + optional costume), environment, shot_type, mood.
+- **The LLM never sees a panel key.** Producer code maps array position → derived positional ID deterministically. Key errors become structurally impossible rather than retryable.
+- **The handoff block** is code-assembled from the previous element's returned array (last panel's description + its characters/costumes) — zero extra LLM calls. It carries fine state (props, costume state) that the narrative is too coarse for; the narrative carries the broad arc.
+- **Sequential order is deliberate:** real state continuity between elements at the cost of ~N×few-seconds latency. Consequence, accepted: element 3's prompt depends on element 2's OUTPUT, so partial scene re-runs are incoherent — a disliked element means re-running the producer for the whole scene (same all-or-nothing model as the chapter producer). Per-panel fixes remain downstream at the parse/regenerate layer.
+- **Retry lives at the element level** (bounded, per-call): the only compliance obligation is "array length == expected panel count for this element" — the same shape of problem the chapter producer's retry loop already beats.
+
+**Assembly + the parse gate.** Producer assembles the scene dict in memory — header (scene_id/chapter_tag/title/elements verbatim from input, narrative from stage 1), panels map built BY CODE from stage 2 arrays — then dumps it to a temp file and runs `ScenePlanParser.parse` on it. The parser is the gate: schema, reference resolution, coverage, geometry, the full Phase 1 gauntlet, BEFORE anything is committed. On success the temp file moves atomically to `scenes/c01_s702.yaml`; parse's normal side effect has already emitted PanelSpecs to `output/`, so `produce-scene` yields the committed scene file AND live PanelSpecs in one run. On any failure: loud error, no half-scene lands on disk. `parse-scene` remains a standalone command for re-parses.
+
+**CLI (Phase 2 scope):** `produce-scene <input>` and `parse-scene <scene_id>`.
+
+**Cost shape:** N+1 small structured-output calls per scene (N = element count), no vision calls, all mockable.
+
+**Deferred (parked, not designed):** stage-1 continuity anchors as structured fields (costume/props/time-of-day per element) — v1 leans on narrative + chunks + handoff; revisit if cross-element continuity disappoints. Scene-level floats. Any UI beyond the input file.
