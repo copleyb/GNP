@@ -1,0 +1,11 @@
+# templates/strips.yaml — ordered panel refs flowing left-to-right from the strip's top-left.
+# Non-floating panels all start at strip y:0; heights may differ (skyline rows legal).
+# Strip height is DERIVED (max of its panels) — no strip-level geometry fields.
+# Floating panels carry explicit coords relative to the strip's top-left corner:
+#   - { panel: inset_square, floating: { x: 100, y: 200 } }
+
+strips:
+  eq2:                # two equal halves: 1200 + 20 + 1200 = 2420, exact fill
+    panels:
+      - panel: half_width
+      - panel: half_width

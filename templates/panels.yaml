@@ -1,0 +1,26 @@
+# templates/panels.yaml — named size presets. Width + height, nothing more.
+# Page: 2480x3508 (A4 @ 300dpi). Bleed 30px -> usable 2420 x 3448. Gutter: 20px (project-level).
+#
+# Width math (non-floating flow, gutter 20):
+#   full_width:    2420 = full usable width, exact
+#   half_width:    1200 x2 + 20          = 2420, exact
+#   quarter_width:  590 x4 + 20x3         = 2420, exact
+#
+# Height 1700 is a choice (not a constraint): two 1700-strips + gutter = 3420 of 3448 usable.
+# Swap to 1714 for exact 2-strip page fill if preferred — presets are a menu, not a rule.
+
+full_width:
+  width_px: 2420
+  height_px: 1700
+
+half_width:
+  width_px: 1200
+  height_px: 1700
+
+quarter_width:
+  width_px: 590
+  height_px: 1700
+
+inset_square:
+  width_px: 300
+  height_px: 300   # intended for floating use (insets, reaction shots)

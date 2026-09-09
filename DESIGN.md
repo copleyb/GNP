@@ -1228,6 +1228,15 @@ Panel entries and the scene header accept optional additive fields. A future fie
 
 ### 16.8 Remaining threads for this design phase
 
-- **Migration plan:** chapter-plan path rip-out vs. coexistence strategy — pending.
+- ~~**Migration plan**~~ — Resolved: feature-flagged coexistence, three phases. See §16.9.
 - ~~**Provenance key check**~~ — Resolved: provenance keys on the tag-free panel ID; chapter tag is display-only (scene filename + PNG prefix). See §16.5.
 - **Fill-state tooling:** largely subsumed by the exact-coverage parse gate (§16.5).
+
+### 16.9 Migration plan (locked)
+
+**Strategy: feature-flagged coexistence — old source stays in place.** A binary `pipeline_mode` flag (`project.yaml`) selects the producer+parser pair at the config/CLI level. The shared PanelSpec-driven downstream (Compiler, Backend, Orchestrator, Validation, Provenance) never branches on the flag — it is a single wiring decision. Old and new panel IDs cannot collide (`c01_pg1_l02_pn01` vs `s702_l01_st01_pn01`), so both paths safely share `output/` and the Provenance Store.
+
+**Phases:**
+1. **Scene Parser path (additive, zero API cost):** `scene_plan.schema.json`, the `templates/` registry (starter set committed Sep 2026: `panels.yaml`, `strips.yaml`, `layouts.yaml` — A4 @ 300dpi, bleed 30, gutter 20), the Scene Parser with ref resolution → deterministic panel-set derivation → exact-coverage gate → flow geometry → PanelSpec emission. Offline test suite. Project-level gutter/bleed settings wired into `project.yaml`.
+2. **Scene Producer (additive, mockable):** `scene_producer.py` generating complete scene files — `elements` list plus full `panels` map with derived positional IDs. Scene-scoped CLI produce/parse commands.
+3. **Cutover:** flag default flips to scene mode; CLI defaults switch. Old chapter path remains in place, **frozen, not maintained** — no retrofit of shared-contract changes. When an evolving PanelSpec contract breaks old-path tests, that is the natural trigger to delete the old path (deferred, not cancelled).
