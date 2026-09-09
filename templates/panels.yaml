@@ -6,21 +6,132 @@
 #   half_width:    1200 x2 + 20          = 2420, exact
 #   quarter_width:  590 x4 + 20x3         = 2420, exact
 #
-# Height 1700 is a choice (not a constraint): two 1700-strips + gutter = 3420 of 3448 usable.
-# Swap to 1714 for exact 2-strip page fill if preferred — presets are a menu, not a rule.
 
-full_width:
+# fixed panels (naming convention is 'p' followed by four digits representing percentage of a page in x then y; 00 equates to 100%
+#              example: p0050 = full width, half height; p3333 = 1/3 width, 1/3 height
+
+
+# full width panels
+p0000:
   width_px: 2420
-  height_px: 1700
+  height_px: 3448
+  
+p0066:
+  width_px: 2420
+  height_px: 2292
+  
+p0050:
+  width_px: 2420
+  height_px: 1714
+  
+p0033:
+  width_px: 2420
+  height_px: 1136
 
-half_width:
+p0025:
+  width_px: 2420
+  height_px: 847
+  
+  
+# 2/3 width panels
+p6600:
+  width_px: 1606
+  height_px: 3448
+
+p6666:
+  width_px: 1606
+  height_px: 2292
+
+p6650:
+  width_px: 1606
+  height_px: 1714
+
+p6633:
+  width_px: 1606
+  height_px: 1136
+
+p6625:
+  width_px: 1606
+  height_px: 847
+  
+
+# half width panels
+p5000:
   width_px: 1200
-  height_px: 1700
+  height_px: 3448
 
-quarter_width:
+p5066:
+  width_px: 1200
+  height_px: 2292
+
+p5050:
+  width_px: 1200
+  height_px: 1714
+
+p5033:
+  width_px: 1200
+  height_px: 1136
+
+p5025:
+  width_px: 1200
+  height_px: 847
+
+
+# 1/3 width panels
+p3300:
+  width_px: 793
+  height_px: 3448
+
+p3366:
+  width_px: 793
+  height_px: 2292
+
+p3350:
+  width_px: 793
+  height_px: 1714
+
+p3333:
+  width_px: 793
+  height_px: 1136
+
+p3325:
+  width_px: 793
+  height_px: 847
+
+
+# 1/4 width panels
+p2500:
   width_px: 590
-  height_px: 1700
+  height_px: 3448
 
-inset_square:
+p2566:
+  width_px: 590
+  height_px: 2292
+
+p2550:
+  width_px: 590
+  height_px: 1714
+
+p2533:
+  width_px: 590
+  height_px: 1136
+
+p2525:
+  width_px: 590
+  height_px: 847
+  
+  
+
+# floating panels (naming convention is 'p' followed by absolute pixel dims with 'x' seperator)
+
+p300x300:      # intended for floating use (insets, reaction shots)      
   width_px: 300
-  height_px: 300   # intended for floating use (insets, reaction shots)
+  height_px: 300   
+  
+p600x600:      # intended for floating use (insets, reaction shots)      
+  width_px: 600
+  height_px: 600
+  
+p900x500:      # intended for floating use (insets, reaction shots)      
+  width_px: 900
+  height_px: 500
