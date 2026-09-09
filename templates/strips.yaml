@@ -39,22 +39,26 @@ strips:
       - panel: p2533
  
   s_2313_33:
-      -panel: p6633
-      -panel: p3333
+    panels:
+      - panel: p6633
+      - panel: p3333
       
   s_1323_33:
-      -panel: p3333
-      -panel: p6633
+    panels:
+      - panel: p3333
+      - panel: p6633
 
   s_121414_33:
-      -panel: p5033
-      -panel: p2533
-      -panel: p2533
+    panels:
+      - panel: p5033
+      - panel: p2533
+      - panel: p2533
 
   s_141412_33:
-      -panel: p2533
-      -panel: p2533
-      -panel: p5033
+    panels:
+      - panel: p2533
+      - panel: p2533
+      - panel: p5033
  
  
  # one-quarter height strips
@@ -77,19 +81,23 @@ strips:
       - panel: p2525
 
   s_2313_25:
-      -panel: p6625
-      -panel: p3325
+    panels:
+      - panel: p6625
+      - panel: p3325
       
   s_1323_25:
-      -panel: p3325
-      -panel: p6625
+    panels:
+      - panel: p3325
+      - panel: p6625
 
   s_121414_25:
-      -panel: p5025
-      -panel: p2525
-      -panel: p2525
+    panels:
+      - panel: p5025
+      - panel: p2525
+      - panel: p2525
 
   s_141412_25:
-      -panel: p2525
-      -panel: p2525
-      -panel: p5025
+    panels:
+      - panel: p2525
+      - panel: p2525
+      - panel: p5025

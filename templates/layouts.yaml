@@ -14,7 +14,7 @@ layouts:
       - panel: p0066
       - strip: s_eq3_33
       
-   l_opening_5:
+  l_opening_5:
     elements:
       - panel: p0066
       - strip: s_eq4_33     
@@ -49,10 +49,10 @@ layouts:
 
   l_3434:
     elements:
-      -strip: s_eq3_33
-      -strip: s_eq4_33
-      -strip: s_eq3_33
-      -strip: s_eq4_33
+      - strip: s_eq3_25
+      - strip: s_eq4_25
+      - strip: s_eq3_25
+      - strip: s_eq4_25
 
   l_opening_4_inset:
     elements:
