@@ -5,7 +5,91 @@
 #   - { panel: p300x300, floating: { x: 100, y: 200 } }
 
 strips:
-  eq2:                # two equal halves: 1200 + 20 + 1200 = 2420, exact fill
+
+# half height strips
+  s_eq2_50:                
     panels:
       - panel: p5050
       - panel: p5050
+      
+  s_eq3_50:                
+    panels:
+      - panel: p3350
+      - panel: p3350
+      - panel: p3350
+
+
+# one-third height strips
+  s_eq2_33:                
+    panels:
+      - panel: p5033
+      - panel: p5033
+      
+  s_eq3_33:                
+    panels:
+      - panel: p3333
+      - panel: p3333
+      - panel: p3333
+      
+  s_eq4_33:
+    panels:
+      - panel: p2533
+      - panel: p2533
+      - panel: p2533
+      - panel: p2533
+ 
+  s_2313_33:
+      -panel: p6633
+      -panel: p3333
+      
+  s_1323_33:
+      -panel: p3333
+      -panel: p6633
+
+  s_121414_33:
+      -panel: p5033
+      -panel: p2533
+      -panel: p2533
+
+  s_141412_33:
+      -panel: p2533
+      -panel: p2533
+      -panel: p5033
+ 
+ 
+ # one-quarter height strips
+  s_eq2_25:                
+    panels:
+      - panel: p5025
+      - panel: p5025
+      
+  s_eq3_25:                
+    panels:
+      - panel: p3325
+      - panel: p3325
+      - panel: p3325
+      
+  s_eq4_25:
+    panels:
+      - panel: p2525
+      - panel: p2525
+      - panel: p2525
+      - panel: p2525
+
+  s_2313_25:
+      -panel: p6625
+      -panel: p3325
+      
+  s_1323_25:
+      -panel: p3325
+      -panel: p6625
+
+  s_121414_25:
+      -panel: p5025
+      -panel: p2525
+      -panel: p2525
+
+  s_141412_25:
+      -panel: p2525
+      -panel: p2525
+      -panel: p5025

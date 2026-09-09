@@ -1,11 +1,61 @@
 # templates/layouts.yaml — ordered strip/panel refs flowing top-down. One layout = one full page.
 # Floating elements carry explicit coords relative to the page's top-left margin (30, 30):
 #   - { panel: p300x300, floating: { x: 200, y: 200 } }
-#
-# Stack math for `duo`: 1714 + 20 + 1714 = 3448 — exact page fill.
+
 
 layouts:
-  duo:
-    strips:
-      - strip: eq2
-      - strip: eq2
+  l_quad:
+    elements:
+      - strip: s_eq2_50
+      - strip: s_eq2_50
+
+  l_opening_4:
+    elements:
+      - panel: p0066
+      - strip: s_eq3_33
+      
+   l_opening_5:
+    elements:
+      - panel: p0066
+      - strip: s_eq4_33     
+      
+  l_closing_4:
+    elements:
+      - strip: s_eq3_33
+      - panel: p0066
+  
+  l_closing_5:
+    elements:
+      - strip: s_eq4_33
+      - panel: p0066
+
+  l_cinematic_7:
+    elements:
+      - strip: s_2313_33
+      - strip: s_eq3_33
+      - strip: s_1323_33
+
+  l_cinematic_8:
+    elements:
+      - strip: s_2313_33
+      - strip: s_eq4_33
+      - strip: s_1323_33
+
+  l_cinematic_9:
+    elements:
+      - strip: s_121414_33
+      - strip: s_eq3_33
+      - strip: s_141412_33
+
+  l_3434:
+    elements:
+      -strip: s_eq3_33
+      -strip: s_eq4_33
+      -strip: s_eq3_33
+      -strip: s_eq4_33
+
+  l_opening_4_inset:
+    elements:
+      - panel: p0066
+      - strip: s_eq3_33
+      - panel: p900x500, floating: { x: 400, y: 400 }
