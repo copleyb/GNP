@@ -1240,3 +1240,25 @@ Panel entries and the scene header accept optional additive fields. A future fie
 1. **Scene Parser path (additive, zero API cost):** `scene_plan.schema.json`, the `templates/` registry (starter set committed Sep 2026: `panels.yaml`, `strips.yaml`, `layouts.yaml` — A4 @ 300dpi, bleed 30, gutter 20), the Scene Parser with ref resolution → deterministic panel-set derivation → exact-coverage gate → flow geometry → PanelSpec emission. Offline test suite. Project-level gutter/bleed settings wired into `project.yaml`.
 2. **Scene Producer (additive, mockable):** `scene_producer.py` generating complete scene files — `elements` list plus full `panels` map with derived positional IDs. Scene-scoped CLI produce/parse commands.
 3. **Cutover:** flag default flips to scene mode; CLI defaults switch. Old chapter path remains in place, **frozen, not maintained** — no retrofit of shared-contract changes. When an evolving PanelSpec contract breaks old-path tests, that is the natural trigger to delete the old path (deferred, not cancelled).
+
+### 16.10 Phase 1 implementation notes (Scene Parser path)
+
+**Status:** Phase 1 complete (Sep 2026). Additive — the chapter-plan path is untouched and its test suite remains green.
+
+**New modules:**
+- `src/pipeline/templates.py` — Template Registry. Loads and validates all three menu files eagerly (structure + cross-references + "width + height, nothing more" enforcement). Malformed or internally-inconsistent menus fail at load — the silent-breakage guard.
+- `src/pipeline/scene_parser.py` — Scene Plan Parser. Stages: schema validation → template resolution → deterministic derivation (l/st/pn positional IDs; bare panel = one-panel strip; floats count as strip members) → exact-coverage gate → flow geometry → PanelSpec emission to `output/{panel_id}.panelspec.json`.
+- `schemas/scene_plan.schema.json` — Draft-07 schema. Strict (`additionalProperties: false`) — additive fields land via deliberate version bumps (§16.7). Panel content: `description`, `environment` (required), `characters` (`id` + optional `costume`), `shot_type`, `mood`.
+- Config wiring: `project.yaml` gains `scenes_dir`, `templates_dir`, `pipeline_mode: chapter` (inert until Phase 3), and the `scene` block (page size, bleed, gutter — project-level geometry). `ScenePlanParser` requires the scene block.
+
+**Deliberate implementation decisions:**
+1. **panel_seed is deterministic** — derived from `sha256(panel_id)` (first byte, hex 00–FF). This makes parse a true pure function of (scene file, templates, config) per §16.5: identical inputs yield byte-identical PanelSpecs. (The chapter path uses a random seed at parse time.)
+2. **Float bounds.** Layout floats: page-margin-relative, must fit the usable area (§16.3). Strip floats: must fit within a page frame anchored at the strip's origin — a position-independent conservative check, since scene space is not page-bounded until post-production slices pages. A floating strip inside a layout is validated against the page frame via its absolute placement.
+3. **Strips require at least one non-floating panel** (a flow anchor). A strip of only floats has no width/height semantics and fails parse.
+4. **Floats never consume flow space** and never affect a strip's derived height — they are overlays (draw order = array order, §16.2).
+5. **Layout elements consume one full usable page of scene space** (they are pages, by design); loose strips/panels consume their own height, with project gutters between elements.
+6. **Scene-level floating elements are not in v1** (edge case; nothing in the current menu needs them). Elements at scene level flow top-down from the scene's top-left.
+
+**Tests:** `tests/test_scene_parser.py` — 50 offline tests (registry, schema, references, derivation/coverage, geometry edge cases via a test-only menu, scene-space flow math, emission, determinism, downstream aspect-ratio compatibility). No LLM calls. Full suite: 302 passed.
+
+**Next:** Phase 2 — Scene Producer (`scene_producer.py`, mockable) and scene-scoped CLI commands.

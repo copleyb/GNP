@@ -12,7 +12,23 @@ characters_dir: characters/
 environments_dir: environments/
 layouts_dir: layouts/
 chapters_dir: chapters/
+scenes_dir: scenes/
+templates_dir: templates/
 output_dir: output/
+
+# Pipeline mode (see DESIGN.md §16.9): "chapter" = chapter-plan path (frozen),
+# "scene" = scene-plan path (Scope Redesign). Selects producer+parser wiring
+# at the CLI level only. Phase 3 cutover flips this default.
+pipeline_mode: chapter
+
+# Scene-mode geometry defaults (see DESIGN.md §16.3). Project-level values —
+# templates carry no geometry; the Scene Parser flows everything with these.
+# A4 at 300dpi with 30px bleed -> usable area 2420 x 3448.
+scene:
+  page_width_px: 2480
+  page_height_px: 3508
+  bleed_px: 30
+  gutter_px: 20
 
 # External storage for reference images (PNGs are gitignored, synced via scripts/sync_assets.py).
 # Path is relative to project root, or absolute. Leave commented to use --source flag instead.

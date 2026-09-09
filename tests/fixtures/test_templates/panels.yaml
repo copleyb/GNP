@@ -1,0 +1,8 @@
+# Test-only template menu for geometry edge cases (skyline strips, floats, overflow).
+# Sizes are arbitrary — the parser's usable area comes from project.yaml (2420 x 3448).
+p1:      { width_px: 100, height_px: 50 }
+p2:      { width_px: 100, height_px: 80 }
+p3:      { width_px: 50, height_px: 50 }
+pbig:    { width_px: 3000, height_px: 50 }    # overflows usable width
+pwide:   { width_px: 2500, height_px: 50 }    # overflows usable width
+ptall:   { width_px: 100, height_px: 4000 }  # overflows usable height

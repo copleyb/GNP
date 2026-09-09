@@ -1,0 +1,43 @@
+# Fixture scene — one full-page layout (l_quad, 4 panels). Real project assets.
+scene_id: s901
+chapter_tag: c01
+title: "Fixture scene — minimal"
+narrative: |
+  Alyssa crosses the market street at midmorning, unhurried but watchful.
+  The stalls are half-stocked; the day has not fully woken.
+
+elements:
+  - layout: l_quad
+
+panels:
+  s901_l01_st01_pn01:
+    description: "Wide establishing shot of the market street at midmorning."
+    characters:
+      - id: alyssa
+        costume: morning_routine
+    environment: city_exterior
+    shot_type: wide
+    mood: calm
+  s901_l01_st01_pn02:
+    description: "Alyssa pauses at a fruit stall, considering."
+    characters:
+      - id: alyssa
+        costume: morning_routine
+    environment: city_exterior
+    shot_type: medium
+    mood: calm
+  s901_l01_st02_pn01:
+    description: "Close on Alyssa's eyes scanning the crowd."
+    characters:
+      - id: alyssa
+        costume: morning_routine
+    environment: city_exterior
+    shot_type: close_up
+    mood: tense
+  s901_l01_st02_pn02:
+    description: "Hood watches Alyssa from across the street."
+    characters:
+      - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: tense

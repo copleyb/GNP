@@ -1,0 +1,20 @@
+layouts:
+  l_two:                    # two skyline strips stacked (gutter 20): 80 + 20 + 80 = 180
+    elements:
+      - strip: s_mixed
+      - strip: s_mixed
+  l_inset:                  # flow stack + floating panel overlay
+    elements:
+      - strip: s_mixed
+      - { panel: p3, floating: { x: 5, y: 5 } }
+  l_float_strip:            # floating strip overlay
+    elements:
+      - strip: s_mixed
+      - { strip: s_triple, floating: { x: 40, y: 40 } }
+  l_overflow:                # strip taller than a page -> must fail
+    elements:
+      - strip: s_tall
+  l_float_escape:           # float beyond usable height -> must fail
+    elements:
+      - strip: s_mixed
+      - { panel: p3, floating: { x: 0, y: 3400 } }

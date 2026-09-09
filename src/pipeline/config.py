@@ -49,6 +49,19 @@ class ScenePromptConfig:
 
 
 @dataclass(frozen=True)
+class SceneConfig:
+    """Scene-mode geometry defaults from project.yaml (DESIGN.md §16.3).
+
+    Page size, bleed, and gutter are project-level — templates carry no
+    geometry, the parser flows everything with these values.
+    """
+    page_width_px: int
+    page_height_px: int
+    bleed_px: int
+    gutter_px: int
+
+
+@dataclass(frozen=True)
 class ValidationConfig:
     """Validation pipeline configuration from project.yaml."""
     threshold: float
@@ -83,10 +96,20 @@ class ProjectConfig:
     # Loaded and validated style data
     style: dict[str, Any]
 
+    # Scene-mode paths (Scope Redesign, DESIGN.md §16)
+    scenes_dir: Path
+    templates_dir: Path
+
     # Optional config blocks (may be None if not specified)
     image_generation: ImageGenerationConfig | None = None
     scene_prompt: ScenePromptConfig | None = None
     validation: ValidationConfig | None = None
+    scene: SceneConfig | None = None
+
+    # Pipeline mode flag (DESIGN.md §16.9): "chapter" (old path, frozen) or
+    # "scene" (new path). Selects producer+parser wiring at the CLI level;
+    # the shared PanelSpec-driven downstream never branches on it.
+    pipeline_mode: str = "chapter"
 
     notes: str | None = None
 
@@ -165,6 +188,8 @@ def load_config(project_root: str | Path) -> ProjectConfig:
     chapters_dir = root / project_data["chapters_dir"]
     output_dir = root / project_data["output_dir"]
     output_archive_dir = output_dir / "archive"
+    scenes_dir = root / project_data.get("scenes_dir", "scenes")
+    templates_dir = root / project_data.get("templates_dir", "templates")
 
     # Parse optional config blocks
     image_gen_config = None
@@ -185,6 +210,16 @@ def load_config(project_root: str | Path) -> ProjectConfig:
         scene_prompt_config = ScenePromptConfig(
             model=sp["model"],
             context_profile=sp["context_profile"],
+        )
+
+    scene_config = None
+    if "scene" in project_data:
+        sc = project_data["scene"]
+        scene_config = SceneConfig(
+            page_width_px=sc["page_width_px"],
+            page_height_px=sc["page_height_px"],
+            bleed_px=sc["bleed_px"],
+            gutter_px=sc["gutter_px"],
         )
 
     validation_config = None
@@ -212,8 +247,12 @@ def load_config(project_root: str | Path) -> ProjectConfig:
         output_archive_dir=output_archive_dir,
         schemas_dir=schemas_dir,
         style=style_data,
+        scenes_dir=scenes_dir,
+        templates_dir=templates_dir,
         image_generation=image_gen_config,
         scene_prompt=scene_prompt_config,
         validation=validation_config,
+        scene=scene_config,
+        pipeline_mode=project_data.get("pipeline_mode", "chapter"),
         notes=project_data.get("notes"),
     )

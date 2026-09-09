@@ -67,7 +67,7 @@
     },
     "image_generation": {
       "type": "object",
-      "description": "Image generation backend configuration. See DESIGN.md §10.",
+      "description": "Image generation backend configuration. See DESIGN.md \u00a710.",
       "required": [
         "backend",
         "model",
@@ -122,7 +122,7 @@
     },
     "scene_prompt": {
       "type": "object",
-      "description": "Scene Prompt Generator configuration. See DESIGN.md §9.",
+      "description": "Scene Prompt Generator configuration. See DESIGN.md \u00a79.",
       "required": [
         "model",
         "context_profile"
@@ -141,7 +141,7 @@
     },
     "validation": {
       "type": "object",
-      "description": "Validation pipeline configuration. See DESIGN.md §12.",
+      "description": "Validation pipeline configuration. See DESIGN.md \u00a712.",
       "required": [
         "threshold",
         "weights",
@@ -185,7 +185,57 @@
     },
     "assets_source": {
       "type": "string",
-      "description": "Path to external reference image storage. Relative to project root or absolute. Used by scripts/sync_assets.py. Optional — can also be passed via --source flag."
+      "description": "Path to external reference image storage. Relative to project root or absolute. Used by scripts/sync_assets.py. Optional \u2014 can also be passed via --source flag."
+    },
+    "pipeline_mode": {
+      "type": "string",
+      "enum": [
+        "chapter",
+        "scene"
+      ],
+      "description": "Selects the producer+parser pair (chapter-plan path or scene path). Shared downstream never branches on it. See DESIGN.md \u00a716.9.",
+      "default": "chapter"
+    },
+    "scenes_dir": {
+      "type": "string",
+      "description": "Path to scene plan directory (scene mode), relative to project root."
+    },
+    "templates_dir": {
+      "type": "string",
+      "description": "Path to template registry directory (scene mode), relative to project root."
+    },
+    "scene": {
+      "type": "object",
+      "description": "Scene-mode geometry defaults. See DESIGN.md \u00a716.3.",
+      "required": [
+        "page_width_px",
+        "page_height_px",
+        "bleed_px",
+        "gutter_px"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "page_width_px": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Page width at 300dpi. A4: 2480."
+        },
+        "page_height_px": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Page height at 300dpi. A4: 3508."
+        },
+        "bleed_px": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bleed per edge. Usable area = page - 2x bleed."
+        },
+        "gutter_px": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Default gutter between panels, strips, and elements."
+        }
+      }
     }
   }
 }

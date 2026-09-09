@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "scene_plan.schema.json",
+  "title": "Scene Plan",
+  "description": "A Producer-generated scene file. Two content sections: elements (structure) and panels (content keyed by derived positional panel ID). See DESIGN.md §16.4.",
+  "type": "object",
+  "required": ["scene_id", "title", "narrative", "elements", "panels"],
+  "additionalProperties": false,
+  "properties": {
+    "scene_id": {
+      "type": "string",
+      "pattern": "^s\\d+$",
+      "description": "Globally unique scene identifier. Never reused; identity does not include the chapter tag."
+    },
+    "chapter_tag": {
+      "type": "string",
+      "pattern": "^c\\d{2}$",
+      "description": "Optional display-only tag. Appears in filenames; never participates in identity or provenance keys."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "narrative": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-written continuity storyboard. Feeds the Scene Prompt Generator's context."
+    },
+    "elements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/sceneElement"
+      }
+    },
+    "panels": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z0-9]+_l\\d{2}_st\\d{2}_pn\\d{2}$": {
+          "$ref": "#/definitions/panelContent"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "sceneElement": {
+      "type": "object",
+      "oneOf": [
+        { "$ref": "#/definitions/layoutRef" },
+        { "$ref": "#/definitions/stripRef" },
+        { "$ref": "#/definitions/panelRef" }
+      ],
+      "description": "Ordered structural element. Array order = draw order (top-down scene flow)."
+    },
+    "layoutRef": {
+      "type": "object",
+      "required": ["layout"],
+      "additionalProperties": false,
+      "properties": {
+        "layout": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      }
+    },
+    "stripRef": {
+      "type": "object",
+      "required": ["strip"],
+      "additionalProperties": false,
+      "properties": {
+        "strip": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      }
+    },
+    "panelRef": {
+      "type": "object",
+      "required": ["panel"],
+      "additionalProperties": false,
+      "properties": {
+        "panel": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      }
+    },
+    "panelContent": {
+      "type": "object",
+      "required": ["description", "environment", "shot_type", "mood"],
+      "additionalProperties": false,
+      "description": "Content entry for one panel. Additive fields land here via deliberate schema version bumps (DESIGN.md §16.7).",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Absolute narrative description of what the panel depicts. Spatial and physical anchoring for stateless model calls."
+        },
+        "environment": {
+          "type": "string",
+          "description": "Environment ID resolved against the project roster at parse time."
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "costume": {
+                "type": "string",
+                "description": "Optional costume variant. Defaults to the character's default costume."
+              }
+            }
+          }
+        },
+        "shot_type": {
+          "type": "string",
+          "enum": [
+            "wide",
+            "medium",
+            "close_up",
+            "extreme_close_up",
+            "overhead",
+            "low_angle",
+            "dutch_angle"
+          ]
+        },
+        "mood": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+strips:
+  s_mixed:                 # skyline: p1 (h50) + p2 (h80) -> strip height 80
+    panels:
+      - panel: p1
+      - panel: p2
+  s_triple:
+    panels:
+      - panel: p1
+      - panel: p1
+      - panel: p1
+  s_float:                 # flow anchor + one float overlay
+    panels:
+      - panel: p3
+      - { panel: p3, floating: { x: 10, y: 10 } }
+  s_all_floats:            # no flow anchor -> must fail
+    panels:
+      - { panel: p3, floating: { x: 1, y: 1 } }
+      - { panel: p3, floating: { x: 2, y: 2 } }
+  s_float_escape:           # float beyond usable width -> must fail
+    panels:
+      - panel: p1
+      - { panel: p3, floating: { x: 2400, y: 0 } }
+  s_overflow_w:             # flow overflows usable width -> must fail
+    panels:
+      - panel: pwide
+  s_tall:                   # taller than a page -> must fail
+    panels:
+      - panel: ptall

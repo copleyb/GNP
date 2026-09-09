@@ -1,0 +1,60 @@
+# Fixture scene — layout + loose strip + bare panel. Tests ID derivation across
+# element types and scene-space flow stacking.
+scene_id: s902
+title: "Fixture scene — mixed elements"
+narrative: |
+  The market wakes up. Alyssa buys fruit; the street fills; the day begins.
+
+elements:
+  - layout: l_quad
+  - strip: s_eq3_33
+  - panel: p0033
+
+panels:
+  s902_l01_st01_pn01:
+    description: "Establishing: the market street filling with morning light."
+    characters:
+      - id: alyssa
+    environment: city_exterior
+    shot_type: wide
+    mood: calm
+  s902_l01_st01_pn02:
+    description: "Alyssa at the fruit stall."
+    characters:
+      - id: alyssa
+    environment: city_exterior
+    shot_type: medium
+    mood: calm
+  s902_l01_st02_pn01:
+    description: "The vendor hands over a paper bag."
+    characters: []
+    environment: city_exterior
+    shot_type: medium
+    mood: neutral
+  s902_l01_st02_pn02:
+    description: "Hood watches from the shadow of an awning."
+    characters:
+      - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: tense
+  s902_l02_st01_pn01:
+    description: "Feet on wet cobblestones."
+    environment: city_exterior
+    shot_type: low_angle
+    mood: neutral
+  s902_l02_st01_pn02:
+    description: "Hands exchanging coins."
+    environment: city_exterior
+    shot_type: close_up
+    mood: neutral
+  s902_l02_st01_pn03:
+    description: "A stall awning snapping in the breeze."
+    environment: city_exterior
+    shot_type: wide
+    mood: neutral
+  s902_l03_st01_pn01:
+    description: "Full-width beat: the street, fully awake now."
+    environment: city_exterior
+    shot_type: wide
+    mood: calm
