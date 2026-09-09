@@ -1,8 +1,8 @@
 # templates/layouts.yaml — ordered strip/panel refs flowing top-down. One layout = one full page.
 # Floating elements carry explicit coords relative to the page's top-left margin (30, 30):
-#   - { panel: inset_square, floating: { x: 200, y: 200 } }
+#   - { panel: p300x300, floating: { x: 200, y: 200 } }
 #
-# Stack math for `duo`: 1700 + 20 + 1700 = 3420 of 3448 usable — 28px slack, legal under-fill.
+# Stack math for `duo`: 1714 + 20 + 1714 = 3448 — exact page fill.
 
 layouts:
   duo:
