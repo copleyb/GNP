@@ -367,6 +367,26 @@ class TestAssemblyAndGate:
         result = producer.produce_scene("s904")   # scene_id, not a path
         assert result["scene"]["scene_id"] == "s904"
 
+    def test_progress_callback_fires_in_order(self, config):
+        """Milestones + retries are reported when a callback is wired."""
+        events = []
+        mock = MockLLM([
+            chunker_ok(2),
+            element_ok(3),   # element 1 wrong length -> retry notice
+            element_ok(4),   # retry ok
+            element_ok(3),
+        ])
+        producer = SceneProducer(config, llm_client=mock, progress_callback=events.append)
+        producer.produce_scene(FIXTURES_DIR / "fixture_scene_input.yaml")
+
+        assert events[0].startswith("Input validated: s904")
+        assert events[1].startswith("Stage 1 complete")
+        assert "Stage 2 element 1 retry (2/3)" in events[2]
+        assert "element 1/2" in events[3]
+        assert "element 2/2" in events[4]
+        assert events[5].startswith("Parse gate:")
+        assert events[-1].startswith("Parse gate passed")
+
     def test_untagged_input_gets_plain_filename(self, config, scene_input):
         del scene_input["chapter_tag"]
         config.scene_inputs_dir.mkdir(parents=True)

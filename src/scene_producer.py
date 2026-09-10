@@ -181,6 +181,7 @@ class SceneProducer:
         config: Any,
         model: str = "gpt-4o",
         llm_client: Callable[[str, str, str, dict[str, Any]], dict[str, Any]] | None = None,
+        progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Initialise the Scene Producer.
@@ -191,9 +192,13 @@ class SceneProducer:
             llm_client: Injectable callable
                 (system_prompt, user_prompt, schema_name, schema) -> dict.
                 Defaults to OpenAI structured output mode.
+            progress_callback: Optional callable(str) for progress updates
+                (CLI wires it to its elapsed-time printer; tests may capture).
+                Structured data is still returned — this is notification only.
         """
         self.config = config
         self.model = model
+        self._progress = progress_callback
         self._llm_client = llm_client or (
             lambda system_prompt, user_prompt, schema_name, schema:
                 _default_llm_client(model, system_prompt, user_prompt, schema_name, schema)
@@ -208,6 +213,11 @@ class SceneProducer:
 
         # Panel-content sub-schema from the scene schema (post-call validation)
         self.panel_content_schema = self.scene_schema["definitions"]["panelContent"]
+
+    def _notify(self, message: str) -> None:
+        """Emit a progress update if a callback is wired."""
+        if self._progress:
+            self._progress(message)
 
     # -- Input loading -------------------------------------------------------
 
@@ -394,6 +404,7 @@ Write the scene narrative and the per-element chunks."""
                     f"Stage 1 (chunker) failed after {self.MAX_RETRIES} attempts. "
                     f"Last error: {last_error}"
                 )
+            self._notify(f"Stage 1 retry ({attempt + 1}/{self.MAX_RETRIES}): {last_error}")
 
         raise SceneProducerLLMError("unreachable")  # pragma: no cover
 
@@ -595,6 +606,10 @@ Write the content for EXACTLY {panel_count} panels — your "panels" array MUST 
                         f"Stage 2 failed for element {element_index} after "
                         f"{self.MAX_RETRIES} attempts. Last error: {last_error}"
                     ) from e
+                self._notify(
+                    f"Stage 2 element {element_index} retry "
+                    f"({attempt + 1}/{self.MAX_RETRIES}): {last_error}"
+                )
 
         raise SceneProducerLLMError("unreachable")  # pragma: no cover
 
@@ -709,6 +724,10 @@ Write the content for EXACTLY {panel_count} panels — your "panels" array MUST 
         panel_ids = self.parser.derive_panel_ids(scene_id, scene_input["elements"])
         if not panel_ids:
             raise SceneInputError("input has no elements")
+        self._notify(
+            f"Input validated: {scene_id} — {len(scene_input['elements'])} elements, "
+            f"{len(panel_ids)} panels"
+        )
 
         # Per-element panel counts (stage-1 allocation context + stage-2 targets)
         element_ids: list[list[str]] = []
@@ -719,6 +738,7 @@ Write the content for EXACTLY {panel_count} panels — your "panels" array MUST 
 
         # Stage 1: narrative + chunks
         narrative, chunks = self._call_chunker(scene_input, element_counts)
+        self._notify(f"Stage 1 complete: narrative written, {len(chunks)} chunks allocated")
 
         # Stage 2: sequential per-element calls with code-assembled handoff
         element_panels: list[list[dict[str, Any]]] = []
@@ -734,13 +754,19 @@ Write the content for EXACTLY {panel_count} panels — your "panels" array MUST 
             )
             attempts.append(self._llm_call_count - before)
             element_panels.append(panels)
+            self._notify(
+                f"Stage 2: element {element_index}/{len(scene_input['elements'])} "
+                f"complete ({count} panels)"
+            )
 
             # Handoff for the next element: this element's final panel.
             handoff = self._build_handoff(panels[-1])
 
         # Assembly + parse gate + atomic commit
+        self._notify("Parse gate: validating scene (schema, coverage, geometry)...")
         scene = self._assemble_scene(scene_input, narrative, element_panels, panel_ids)
         file_path, parse_result = self._commit_through_parse_gate(scene)
+        self._notify(f"Parse gate passed — committed {file_path.name}")
 
         return {
             "scene": scene,

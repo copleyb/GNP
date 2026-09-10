@@ -191,10 +191,11 @@ def cmd_produce_scene(args: argparse.Namespace) -> int:
 
     from scene_producer import SceneProducer, SceneProducerError, SceneInputError
 
-    producer = SceneProducer(config, model=args.model)
+    producer = SceneProducer(config, model=args.model, progress_callback=_progress_printer)
 
     target = args.input
     print(f"Producing scene from: {target}")
+    _progress_printer._t0 = time.time()
     try:
         result = producer.produce_scene(target)
     except (SceneInputError, SceneProducerError) as e:

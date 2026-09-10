@@ -1311,4 +1311,6 @@ Panel entries and the scene header accept optional additive fields. A future fie
 
 **Cost shape per scene:** 1 + N element calls (N = element count) + bounded retries. No vision calls. First live run: `python -m pipeline.cli produce-scene c01_s702` (needs `OPENAI_API_KEY`).
 
-**Next:** Phase 3 cutover — flip `pipeline_mode` to `scene`, CLI defaults switch; the chapter path stays frozen in place per §16.9.
+**Addendum (progress reporting):** SceneProducer accepts an optional `progress_callback` (mirrors the Orchestrator pattern) and reports milestones — input validated (elements/panel counts), stage 1 complete, each stage-2 element, retries as they happen, and the parse gate. The CLI wires this to the existing elapsed-time printer, so `produce-scene` gives the same live feedback as `generate`.
+
+**Next:** Phase 3 cutover — flip `pipeline_mode` to `scene`, CLI defaults switch; the chapter path stays frozen in place per §16.9. Known Phase 3 work item: scene PanelSpecs carry no `page_id` (scene space is unpaginated by §16.3), so the surrounding-panel context the scene-prompt generator uses must be grouped per element/scene window instead of per page.
