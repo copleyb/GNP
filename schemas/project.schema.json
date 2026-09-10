@@ -236,6 +236,10 @@
           "description": "Default gutter between panels, strips, and elements."
         }
       }
+    },
+    "scene_inputs_dir": {
+      "type": "string",
+      "description": "Path to scene producer input files (scene mode), relative to project root."
     }
   }
 }

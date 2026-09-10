@@ -3,6 +3,8 @@ cli.py — Command-line interface for the Graphic Novel Pipeline.
 
 Provides subcommands for the full production workflow:
   produce   — Generate a Chapter Plan from a synopsis (GPT-4o)
+  produce-scene — Produce a scene file from an input file (two-stage GPT-4o)
+  parse-scene — Parse a scene file into PanelSpecs (scene parser)
   parse     — Parse a Chapter Plan into PanelSpecs (4-stage validation)
   generate  — Generate panel images (single panel, page, or full chapter)
   regenerate— Regenerate a panel (replay/reroll/revise/regenerate)
@@ -176,6 +178,80 @@ def _progress_printer(msg: str) -> None:
     """Print a progress update with a timestamp."""
     elapsed = time.time() - _progress_printer._t0
     print(f"  [{elapsed:5.1f}s] {msg}")
+
+
+# -- Command: produce-scene (Scope Redesign, DESIGN.md SS16.11) ----------------
+
+def cmd_produce_scene(args: argparse.Namespace) -> int:
+    """Produce a scene from an input file via the two-stage Scene Producer."""
+    config = load_config(args.project)
+    if config.scene is None:
+        print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+        return 1
+
+    from scene_producer import SceneProducer, SceneProducerError, SceneInputError
+
+    producer = SceneProducer(config, model=args.model)
+
+    target = args.input
+    print(f"Producing scene from: {target}")
+    try:
+        result = producer.produce_scene(target)
+    except (SceneInputError, SceneProducerError) as e:
+        print(f"\033[31mScene production failed: {e}\033[0m")
+        return 1
+
+    parse_result = result["parse_result"]
+    att = result["attempts"]
+    total = result["total_llm_calls"]
+    print(f"\033[32mProduced scene {parse_result.scene_id}: "
+          f"{parse_result.total_panels} panels\033[0m")
+    print(f"  Scene file: {result['file_path']}")
+    print(f"  PanelSpecs: {parse_result.total_panels} written to {config.output_dir}")
+    print(f"  LLM calls: {total} "
+          f"(chunker: {att['chunker']}, elements: {sum(att['elements'])})")
+    return 0
+
+
+# -- Command: parse-scene (Scope Redesign, DESIGN.md SS16.2) --------------------
+
+def cmd_parse_scene(args: argparse.Namespace) -> int:
+    """Parse a scene file into PanelSpecs (Phase 1 parser, full gauntlet)."""
+    config = load_config(args.project)
+    if config.scene is None:
+        print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+        return 1
+
+    from pipeline.scene_parser import ScenePlanParser, SceneParserError
+
+    parser = ScenePlanParser(config)
+
+    print(f"Parsing scene {args.scene}...")
+    try:
+        target = Path(args.scene)
+        if target.exists() or target.is_absolute():
+            result = parser.parse(target)
+        else:
+            result = parser.parse_scene(args.scene)
+    except SceneParserError as e:
+        print(f"\033[31mScene parse error: {e}\033[0m")
+        return 1
+    except FileNotFoundError as e:
+        print(f"\033[31mFile not found: {e}\033[0m")
+        return 1
+
+    print(f"\033[32mParsed {result.total_panels} panels\033[0m")
+    print(f"  Scene file: {result.scene_file}")
+    print(f"  Scene height: {result.scene_height_px}px")
+
+    for p in result.panels:
+        spec = p.panel_spec
+        print(f"  {spec['panel_id']}  "
+              f"[{spec['shot_type']}/{spec['mood']}]  "
+              f"{spec['description'][:60]}...")
+        print(f"    -> {p.output_path}")
+
+    return 0
 
 
 # -- Command: generate -------------------------------------------------------
@@ -812,6 +888,44 @@ examples:
     )
     p_parse.add_argument("--chapter", type=int, required=True, help="Chapter number")
     p_parse.set_defaults(func=cmd_parse)
+
+    # -- produce-scene --
+    p_produce_scene = subparsers.add_parser(
+        "produce-scene",
+        help="Produce a scene file from an input file (two-stage GPT-4o; DESIGN.md §16.11)",
+        description=(
+            "Produce a complete scene via the two-stage Scene Producer: "
+            "stage 1 chunks the synopsis + writes the narrative; stage 2 fills "
+            "each element's panels sequentially with continuity handoffs. "
+            "Output is gated through the Scene Parser (atomic commit to scenes/)."
+        ),
+    )
+    p_produce_scene.add_argument(
+        "input",
+        help="Scene input file path or scene_id (globbed in scene_inputs/)",
+    )
+    p_produce_scene.add_argument(
+        "--model",
+        default="gpt-4o",
+        help="LLM model for producer calls (default: gpt-4o)",
+    )
+    p_produce_scene.set_defaults(func=cmd_produce_scene)
+
+    # -- parse-scene --
+    p_parse_scene = subparsers.add_parser(
+        "parse-scene",
+        help="Parse a scene file into PanelSpecs (scene parser, DESIGN.md §16)",
+        description=(
+            "Run the full scene parse gauntlet (schema, coverage, geometry) "
+            "and emit PanelSpecs. Accepts a scene file path or scene_id "
+            "(globbed in scenes/)."
+        ),
+    )
+    p_parse_scene.add_argument(
+        "scene",
+        help="Scene file path or scene_id (globbed in scenes/)",
+    )
+    p_parse_scene.set_defaults(func=cmd_parse_scene)
 
     # -- generate --
     p_gen = subparsers.add_parser(

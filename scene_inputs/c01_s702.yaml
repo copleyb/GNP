@@ -1,0 +1,20 @@
+# Scene input — Chapter 1 opening scene (starter example; edit freely).
+# The user owns STRUCTURE (elements); the producer does the rest (DESIGN.md §16.11).
+scene_id: s702
+chapter_tag: c01
+title: "Market Morning"
+
+synopsis: |
+  Morning on the market street. Alyssa moves through the stalls at an
+  unhurried pace, buying fruit, watchful without seeming to watch. Hood
+  shadows her from across the street, always half a stall behind. The
+  street wakes up around them: vendors calling, awnings snapping open,
+  a stray cat threading between legs. Alyssa clocks her tail in a
+  shop window's reflection and keeps walking, changing nothing except
+  her route. The scene ends with her turning down a side alley, and
+  Hood following.
+
+elements:
+  - layout: l_opening_4
+  - layout: l_cinematic_9
+  - strip: s_eq2_50

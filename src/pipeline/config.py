@@ -99,6 +99,7 @@ class ProjectConfig:
     # Scene-mode paths (Scope Redesign, DESIGN.md §16)
     scenes_dir: Path
     templates_dir: Path
+    scene_inputs_dir: Path
 
     # Optional config blocks (may be None if not specified)
     image_generation: ImageGenerationConfig | None = None
@@ -190,6 +191,7 @@ def load_config(project_root: str | Path) -> ProjectConfig:
     output_archive_dir = output_dir / "archive"
     scenes_dir = root / project_data.get("scenes_dir", "scenes")
     templates_dir = root / project_data.get("templates_dir", "templates")
+    scene_inputs_dir = root / project_data.get("scene_inputs_dir", "scene_inputs")
 
     # Parse optional config blocks
     image_gen_config = None
@@ -249,6 +251,7 @@ def load_config(project_root: str | Path) -> ProjectConfig:
         style=style_data,
         scenes_dir=scenes_dir,
         templates_dir=templates_dir,
+        scene_inputs_dir=scene_inputs_dir,
         image_generation=image_gen_config,
         scene_prompt=scene_prompt_config,
         validation=validation_config,

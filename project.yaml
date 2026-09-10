@@ -13,6 +13,7 @@ environments_dir: environments/
 layouts_dir: layouts/
 chapters_dir: chapters/
 scenes_dir: scenes/
+scene_inputs_dir: scene_inputs/
 templates_dir: templates/
 output_dir: output/
 

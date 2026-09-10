@@ -566,6 +566,25 @@ class ScenePlanParser:
         }
         return spec
 
+    def derive_panel_ids(self, scene_id: str, elements: list[dict[str, Any]]) -> list[str]:
+        """
+        Derive the full ordered panel ID list for a scene's elements.
+
+        Public so the Scene Producer can compute the panel ID space BEFORE
+        any LLM call (DESIGN.md SS16.11: user owns structure, the ID space is
+        computable up front). Elements are validated the same way parse
+        validates them, but no panels map is required.
+
+        Args:
+            scene_id: The scene identifier (e.g. "s702").
+            elements: The scene's elements list (same shape as the scene file).
+
+        Returns:
+            Ordered list of panel IDs (layout flow order).
+        """
+        derived, _ = self._derive_panel_placements(elements)
+        return [pid.format(scene=scene_id) for pid, _ in derived]
+
     # -- Public API ----------------------------------------------------------------------
 
     def parse(self, scene_file: str | Path) -> SceneParseResult:

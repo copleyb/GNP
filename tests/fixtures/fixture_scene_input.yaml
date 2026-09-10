@@ -1,0 +1,11 @@
+# Fixture scene input for the Scene Producer tests: 2 elements, 7 panels total.
+scene_id: s904
+chapter_tag: c01
+title: "Producer fixture"
+synopsis: |
+  Two beats: the market street waking up, then a quiet reaction strip
+  as Alyssa notices she is being followed.
+
+elements:
+  - layout: l_quad
+  - strip: s_eq3_33

@@ -1288,3 +1288,27 @@ Panel entries and the scene header accept optional additive fields. A future fie
 **Cost shape:** N+1 small structured-output calls per scene (N = element count), no vision calls, all mockable.
 
 **Deferred (parked, not designed):** stage-1 continuity anchors as structured fields (costume/props/time-of-day per element) — v1 leans on narrative + chunks + handoff; revisit if cross-element continuity disappoints. Scene-level floats. Any UI beyond the input file.
+
+### 16.12 Phase 2 implementation notes (Scene Producer)
+
+**Status:** Phase 2 complete (Sep 2026). Additive — the chapter producer path is untouched and its suite remains green (328 total passed).
+
+**New modules and files:**
+- `src/scene_producer.py` — SceneProducer. Two-stage LLM process per §16.11: stage 1 chunker emits `{narrative, chunks[N]}` (bounded retry on chunk count / empty narrative); stage 2 emits ordered panel-content arrays per element, SEQUENTIAL in element order, with a code-assembled WHERE-WE-LEFT-OFF handoff (previous element's final panel: description + characters with costumes) and the stage-1 narrative as shared backbone. The LLM never sees a panel key — code maps array position to the derived positional ID via `ScenePlanParser.derive_panel_ids` (public derivation added to the parser for exactly this).
+- `schemas/scene_input.schema.json` — the input-file contract: `scene_id`, `chapter_tag` (optional), `title`, `synopsis`, `elements[]`. Strict; unknown template refs are rejected BEFORE any LLM call is spent.
+- `scene_inputs/c01_s702.yaml` — starter input (Chapter 1 opening beat: l_opening_4 + l_cinematic_9 + s_eq2_50 = 15 panels).
+- Config: `scene_inputs_dir` (default `scene_inputs/`).
+- CLI: `produce-scene <input|scene_id>` and `parse-scene <scene|scene_id>` — additive subcommands; both require the project `scene` block.
+
+**Implementation decisions:**
+1. **Post-call content validation mirrors the chapter producer:** array length (the only compliance obligation), panelContent schema conformance, and roster checks (characters, costume variants, environments) — all retryable per element, MAX_RETRIES = 3, then loud failure. Failures report the offending id.
+2. **`costume: null` normalisation:** OpenAI strict structured output forces `costume` to be present and nullable; the scene schema's field is an optional string. The producer drops null costumes post-call (null == default == omit). Without this, every default-costume panel would fail validation.
+3. **Atomic commit through the parse gate:** the assembled scene is written to a temp file inside `scenes/`, run through the full Phase 1 gauntlet (parse side effect: PanelSpecs to `output/`), then `os.replace`d to `{chapter_tag}_{scene_id}.yaml` (or `{scene_id}.yaml` untagged). Any failure unlinks the temp file — no half-scene, no orphaned PanelSpecs from a rejected scene.
+4. **Injectable LLM client:** `llm_client=(system, user, schema_name, schema) -> dict`; default is OpenAI structured output (strict: true). Both stage schemas are hand-written strict-mode schemas (all fields required, `additionalProperties: false`, closed `shot_type` enum) — same pattern as the chapter producer.
+5. **Call accounting:** every call is counted; the result dict reports per-stage attempts and total LLM calls (tests assert the sequential dependency: element k's prompt contains element k-1's returned content).
+
+**Tests:** `tests/test_scene_producer.py` — 26 offline tests with a scripted mock LLM (input validation, stage-1 retry semantics, prompt content including handoff construction, stage-2 retry semantics, null-costume normalisation, atomic commit, temp-file hygiene, reparse of committed output). Full suite: 328 passed.
+
+**Cost shape per scene:** 1 + N element calls (N = element count) + bounded retries. No vision calls. First live run: `python -m pipeline.cli produce-scene c01_s702` (needs `OPENAI_API_KEY`).
+
+**Next:** Phase 3 cutover — flip `pipeline_mode` to `scene`, CLI defaults switch; the chapter path stays frozen in place per §16.9.
