@@ -180,10 +180,12 @@ class TestPanelSpecPatching:
 
     def test_costume_patch_filters_refs(self, orchestrator, multi_char_spec):
         """Costume patch updates variants and refs for characters that have
-        the variant; characters without it fall back to default (per
-        DESIGN.md costume design)."""
+        the variant; characters without it fall back to default WITH a
+        warning (per DESIGN.md costume design). The warning is asserted
+        here, not leaked to the suite."""
         overrides = {"costume": "morning_routine"}
-        patched = orchestrator._apply_panelspec_patches(multi_char_spec, overrides)
+        with pytest.warns(UserWarning, match="hood.*morning_routine"):
+            patched = orchestrator._apply_panelspec_patches(multi_char_spec, overrides)
 
         # alyssa has the morning_routine variant: updated, refs filtered
         alyssa = next(
