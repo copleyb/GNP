@@ -127,8 +127,8 @@ class TestTemplateRegistry:
         kinds = [(m.kind, m.ref_id, m.floating) for m in members]
         assert kinds == [
             ("panel", "p0066", None),
-            ("strip", "s_eq3_33", None),
             ("panel", "p900x500", (400, 400)),
+            ("strip", "s_eq3_33", None),
         ]
         assert [m.strip_index for m in members] == [1, 2, 3]
 
@@ -446,11 +446,12 @@ class TestSceneSpaceFlow:
         geos = {p.panel_spec["panel_id"]: p.panel_spec["panel_geometry"]
                 for p in result.panels}
         # Bare p0066 (2420 x 2292) then s_eq3_33 (1136) stacked: exact page.
+        # (Array order = narrative order: splash, float inset, then the strip.)
         assert geos["s903_l01_st01_pn01"]["y"] == 0
-        assert geos["s903_l01_st02_pn01"]["y"] == 2312
-        assert geos["s903_l01_st02_pn01"]["height_px"] == 1136
+        assert geos["s903_l01_st03_pn01"]["y"] == 2312
+        assert geos["s903_l01_st03_pn01"]["height_px"] == 1136
         # The float: 900 x 500 at (400, 400), page-relative.
-        assert geos["s903_l01_st03_pn01"] == {"x": 400, "y": 400, "width_px": 900, "height_px": 500}
+        assert geos["s903_l01_st02_pn01"] == {"x": 400, "y": 400, "width_px": 900, "height_px": 500}
 
 
 # -- PanelSpec emission ------------------------------------------------------------------------

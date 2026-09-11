@@ -14,22 +14,22 @@ panels:
     environment: city_exterior
     shot_type: wide
     mood: somber
-  s903_l01_st02_pn01:
+  s903_l01_st03_pn01:
     description: "Steam rising from a grate."
     environment: city_exterior
     shot_type: medium
     mood: neutral
-  s903_l01_st02_pn02:
+  s903_l01_st03_pn02:
     description: "A stray cat crossing the street."
     environment: city_exterior
     shot_type: medium
     mood: neutral
-  s903_l01_st02_pn03:
+  s903_l01_st03_pn03:
     description: "The alley mouth, dark and unremarkable."
     environment: city_exterior
     shot_type: wide
     mood: tense
-  s903_l01_st03_pn01:
+  s903_l01_st02_pn01:
     description: "Inset: the soccer ball, mid-flight against brick."
     environment: city_exterior
     shot_type: close_up
