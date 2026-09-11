@@ -113,7 +113,7 @@ class TestInputLoading:
         """The shipped scene_inputs/c01_s702.yaml starter loads against the real menu."""
         cfg = load_config(str(PROJECT_ROOT))
         producer = SceneProducer(cfg, llm_client=standard_mock())
-        scene_input = producer.load_input(PROJECT_ROOT / "scene_inputs" / "c01_s702.yaml")
+        scene_input = producer.load_input(PROJECT_ROOT / "scene_inputs" / "c01_s702.input.yaml")
         ids = producer.parser.derive_panel_ids("s702", scene_input["elements"])
         assert len(ids) == 15
 
@@ -135,10 +135,10 @@ class TestInputLoading:
 
     def test_find_input_glob(self, config, scene_input, tmp_path):
         config.scene_inputs_dir.mkdir(parents=True)
-        (config.scene_inputs_dir / "c01_s904.yaml").write_text(yaml.safe_dump(scene_input))
+        (config.scene_inputs_dir / "c01_s904.input.yaml").write_text(yaml.safe_dump(scene_input))
         producer = SceneProducer(config, llm_client=standard_mock())
         found = producer.find_input("s904")
-        assert found.name == "c01_s904.yaml"
+        assert found.name == "c01_s904.input.yaml"
 
     def test_find_input_missing(self, config):
         producer = SceneProducer(config, llm_client=standard_mock())
@@ -362,7 +362,7 @@ class TestAssemblyAndGate:
 
     def test_produce_by_scene_id_convenience(self, config, scene_input):
         config.scene_inputs_dir.mkdir(parents=True)
-        (config.scene_inputs_dir / "c01_s904.yaml").write_text(yaml.safe_dump(scene_input))
+        (config.scene_inputs_dir / "c01_s904.input.yaml").write_text(yaml.safe_dump(scene_input))
         producer = make_producer(config, standard_mock())
         result = producer.produce_scene("s904")   # scene_id, not a path
         assert result["scene"]["scene_id"] == "s904"
@@ -390,7 +390,7 @@ class TestAssemblyAndGate:
     def test_untagged_input_gets_plain_filename(self, config, scene_input):
         del scene_input["chapter_tag"]
         config.scene_inputs_dir.mkdir(parents=True)
-        (config.scene_inputs_dir / "s904.yaml").write_text(yaml.safe_dump(scene_input))
+        (config.scene_inputs_dir / "s904.input.yaml").write_text(yaml.safe_dump(scene_input))
         producer = make_producer(config, standard_mock())
         result = producer.produce_scene("s904")
         assert result["file_path"].name == "s904.yaml"

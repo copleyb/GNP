@@ -1267,7 +1267,7 @@ Panel entries and the scene header accept optional additive fields. A future fie
 
 **Reframe:** the user owns STRUCTURE (the elements list), the LLM owns CONTENT. The hardest failure mode of the scene format — an LLM choosing elements *and* emitting panel keys that must exactly match its own choice — is designed out: with elements as human input, the panel ID space is fully computable before any LLM call.
 
-**The input file** (`scene_inputs/c01_s702.yaml`, the v1 "UI"): `scene_id`, `chapter_tag`, `title`, `synopsis`, `elements[]` (the scene file's elements list, verbatim). No hints, no environment steering — the LLM picks environments and characters from the project roster, as the chapter producer does. North star for any future UI: the user provides a list of desired elements and a synopsis; the producer does the rest.
+**The input file** (`scene_inputs/c01_s702.input.yaml`, the v1 "UI"): `scene_id`, `chapter_tag`, `title`, `synopsis`, `elements[]` (the scene file's elements list, verbatim). No hints, no environment steering — the LLM picks environments and characters from the project roster, as the chapter producer does. North star for any future UI: the user provides a list of desired elements and a synopsis; the producer does the rest.
 
 **Two-stage LLM process** (per scene; mockable via injected `call_llm`, like the chapter producer):
 
@@ -1296,8 +1296,9 @@ Panel entries and the scene header accept optional additive fields. A future fie
 **New modules and files:**
 - `src/scene_producer.py` — SceneProducer. Two-stage LLM process per §16.11: stage 1 chunker emits `{narrative, chunks[N]}` (bounded retry on chunk count / empty narrative); stage 2 emits ordered panel-content arrays per element, SEQUENTIAL in element order, with a code-assembled WHERE-WE-LEFT-OFF handoff (previous element's final panel: description + characters with costumes) and the stage-1 narrative as shared backbone. The LLM never sees a panel key — code maps array position to the derived positional ID via `ScenePlanParser.derive_panel_ids` (public derivation added to the parser for exactly this).
 - `schemas/scene_input.schema.json` — the input-file contract: `scene_id`, `chapter_tag` (optional), `title`, `synopsis`, `elements[]`. Strict; unknown template refs are rejected BEFORE any LLM call is spent.
-- `scene_inputs/c01_s702.yaml` — starter input (Chapter 1 opening beat: l_opening_4 + l_cinematic_9 + s_eq2_50 = 15 panels).
+- `scene_inputs/c01_s702.input.yaml` — starter input (Chapter 1 opening beat: l_opening_4 + l_cinematic_9 + s_eq2_50 = 15 panels).
 - Config: `scene_inputs_dir` (default `scene_inputs/`).
+- Input naming convention: input files MUST end in `.input.yaml` (`find_input` is strict — no bare `.yaml` fallback). This keeps author-owned inputs (`scene_inputs/c01_s702.input.yaml`) visually and structurally distinct from producer-generated scenes (`scenes/c01_s702.yaml`), so the two same-basename artifacts can't be confused or cross-edited.
 - CLI: `produce-scene <input|scene_id>` and `parse-scene <scene|scene_id>` — additive subcommands; both require the project `scene` block.
 
 **Implementation decisions:**

@@ -269,20 +269,24 @@ class SceneProducer:
 
     def find_input(self, scene_id: str) -> Path:
         """
-        Locate an input file by scene ID: scene_inputs/{id}.yaml or
-        scene_inputs/*_{id}.yaml (chapter-tagged filenames).
+        Locate an input file by scene ID: scene_inputs/{id}.input.yaml or
+        scene_inputs/*_{id}.input.yaml (chapter-tagged filenames). The
+        .input.yaml suffix is REQUIRED — it distinguishes author-owned
+        inputs (scene_inputs/) from producer-generated scenes (scenes/),
+        which never share a basename convention.
         """
         inputs_dir = self.config.scene_inputs_dir
         candidates = [
-            inputs_dir / f"{scene_id}.yaml",
-            *sorted(inputs_dir.glob(f"*_{scene_id}.yaml")),
+            inputs_dir / f"{scene_id}.input.yaml",
+            *sorted(inputs_dir.glob(f"*_{scene_id}.input.yaml")),
         ]
         for candidate in candidates:
             if candidate.exists():
                 return candidate
         raise SceneInputError(
             f"No scene input file for '{scene_id}' in {inputs_dir} "
-            f"(looked for {scene_id}.yaml or *_{scene_id}.yaml)"
+            f"(looked for {scene_id}.input.yaml or *_{scene_id}.input.yaml; "
+            f"the .input.yaml suffix is required)"
         )
 
     # -- Context (roster injection for stage 2) --------------------------------
