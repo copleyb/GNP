@@ -57,5 +57,5 @@ layouts:
   l_opening_4_inset:
     elements:
       - panel: p0066
+      - { panel: p900x500, floating: { x: 400, y: 400 } }      
       - strip: s_eq3_33
-      - { panel: p900x500, floating: { x: 400, y: 400 } }
