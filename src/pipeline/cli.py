@@ -261,6 +261,21 @@ def cmd_generate(args: argparse.Namespace) -> int:
     """Generate panel images."""
     config = load_config(args.project)
 
+    # -- Scope dispatch: chapter (legacy) or scene (Scope Redesign) ---------
+    if getattr(args, "scene", None):
+        if args.chapter:
+            print("Error: --chapter and --scene are mutually exclusive.")
+            return 1
+        if args.page:
+            print("Error: --page applies to chapters only. Scenes are unpaginated")
+            print("       (page slicing is a post-production concern).")
+            return 1
+        return _generate_scene_command(config, args)
+
+    if not args.chapter:
+        print("Error: provide --chapter <n> or --scene <id>.")
+        return 1
+
     # Parse the chapter to get PanelSpecs
     parser = ChapterPlanParser(config)
     try:
@@ -297,6 +312,104 @@ def cmd_generate(args: argparse.Namespace) -> int:
         for p in parse_result.panels:
             pages.setdefault(p.panel_spec["page_id"], []).append(p.panel_spec)
         return _generate_chapter(config, pages)
+
+
+# -- Scene-scoped generation (Scope Redesign, pre-cutover) --------------------
+
+def _element_of(panel_id: str) -> str:
+    """Element key from a positional scene panel ID: s702_l01_st01_pn01 -> s702_l01."""
+    parts = panel_id.split("_")
+    return f"{parts[0]}_{parts[1]}"
+
+
+def _scene_surrounding(panels_in_order: list, panel_id: str) -> list[str]:
+    """
+    Element-grouped surrounding descriptions for a scene panel.
+
+    Same-element neighbors as Previous/Next; at element starts the previous
+    element's final panel is included as Previous (cross-element handoff,
+    mirroring the producer's WHERE-WE-LEFT-OFF). No cross-element Next.
+    """
+    specs = [p.panel_spec for p in panels_in_order]
+    idx = next(i for i, s in enumerate(specs) if s["panel_id"] == panel_id)
+    elem = _element_of(panel_id)
+
+    prev = next(
+        (s for s in reversed(specs[:idx]) if _element_of(s["panel_id"]) == elem), None
+    )
+    nxt = next(
+        (s for s in specs[idx + 1:] if _element_of(s["panel_id"]) == elem), None
+    )
+    if prev is None and idx > 0:
+        prev = specs[idx - 1]  # last panel of the previous element, in reading order
+
+    out: list[str] = []
+    if prev is not None:
+        out.append(f"Previous panel: {prev['description']}")
+    if nxt is not None:
+        out.append(f"Next panel: {nxt['description']}")
+    return out
+
+
+def _generate_scene_command(config: ProjectConfig, args: argparse.Namespace) -> int:
+    """Generate panels from a scene plan (re-parse, then shared downstream)."""
+    if config.scene is None:
+        print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+        return 1
+
+    from pipeline.scene_parser import ScenePlanParser, SceneParserError
+
+    parser = ScenePlanParser(config)
+    try:
+        result = parser.parse_scene(args.scene)
+    except (SceneParserError, FileNotFoundError) as e:
+        print(f"\033[31mScene parse error: {e}\033[0m")
+        return 1
+
+    panels = sorted(result.panels, key=lambda p: p.panel_spec["panel_id"])
+
+    if args.panel:
+        matching = [p for p in panels if p.panel_spec["panel_id"] == args.panel]
+        if not matching:
+            print(f"Error: panel '{args.panel}' not found in scene {args.scene}")
+            return 1
+        panels = matching
+
+    orch = Orchestrator(config)
+    total = len(panels)
+    scope = f"scene {result.scene_id}"
+    print(f"Generating {scope} ({total} panel{'s' if total != 1 else ''})...")
+    print()
+
+    succeeded = 0
+    failures: list[str] = []
+    for panel in panels:
+        spec = panel.panel_spec
+        surrounding = _scene_surrounding(panels, spec["panel_id"])
+        print(f"Generating {_fmt_panel_id(spec['panel_id'])}...")
+        print(f"  Shot: {spec['shot_type']}, Mood: {spec['mood']}")
+        print(f"  Size: {spec['panel_geometry']['width_px']}x{spec['panel_geometry']['height_px']}px")
+        print(f"  Context: {len(surrounding)} neighbor panel(s)")
+        print()
+
+        _progress_printer._t0 = time.time()
+        gen_result = orch.generate_panel(
+            spec, surrounding_descriptions=surrounding, progress_callback=_progress_printer
+        )
+        _print_panel_result(gen_result)
+        if gen_result.status == "success":
+            succeeded += 1
+        else:
+            failures.append(spec["panel_id"])
+        print()
+
+    elapsed = time.time() - _progress_printer._t0
+    print(f"{'='*50}")
+    print(f"{scope.capitalize()} complete: {succeeded}/{total} panels succeeded")
+    if failures:
+        print(f"  Failed: {', '.join(failures)}")
+    print(f"  Elapsed: {elapsed:.1f}s")
+    return 0 if not failures else 1
 
 
 def _generate_single(
@@ -933,7 +1046,8 @@ examples:
         "generate",
         help="Generate panel images",
     )
-    p_gen.add_argument("--chapter", type=int, required=True, help="Chapter number")
+    p_gen.add_argument("--chapter", type=int, help="Chapter number (legacy path)")
+    p_gen.add_argument("--scene", type=str, help="Scene ID (scene path, e.g. s702)")
     p_gen.add_argument("--page", type=str, help="Generate only this page (e.g. 1 or 2_1)")
     p_gen.add_argument("--panel", help="Generate only this panel ID")
     p_gen.set_defaults(func=cmd_generate)
