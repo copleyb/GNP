@@ -67,6 +67,17 @@ class PageResult:
         return sum(1 for p in self.panels if p.status == "failure")
 
 
+def _display_stem(panel_spec: dict[str, Any]) -> str:
+    """
+    Output filename stem for a panel: chapter_tag display prefix + tag-free
+    panel_id (e.g. c01_s702_l01_st01_pn01). Chapter-mode PanelSpecs carry no
+    chapter_tag (the tag lives inside their panel_id), so they are unaffected.
+    Provenance identity (record keys, store filenames) stays tag-free.
+    """
+    tag = panel_spec.get("chapter_tag")
+    return f"{tag}_{panel_spec['panel_id']}" if tag else panel_spec["panel_id"]
+
+
 class Orchestrator:
     """
     Coordinates the generation pipeline.
@@ -169,10 +180,11 @@ class Orchestrator:
         # 4. Write output file
         if progress_callback:
             progress_callback("Writing output...")
-        attempt = attempt_number or self._next_attempt_number(panel_id)
+        stem = _display_stem(panel_spec)
+        attempt = attempt_number or self._next_attempt_number(stem)
         output_path = self._write_output(
             result.output_bytes if not output_dimensions else None,
-            panel_id,
+            stem,
             attempt,
             target_w,
             target_h,
@@ -183,6 +195,7 @@ class Orchestrator:
             panel_id, attempt, gen_request, result,
             input_dimensions, output_dimensions,
             effective_panelspec=panel_spec,
+            output_stem=stem,
         )
 
         return PanelResult(
@@ -700,10 +713,11 @@ class Orchestrator:
         # -- Write output --
         if progress_callback:
             progress_callback("Writing output...")
-        attempt = self._next_attempt_number(panel_id)
+        stem = _display_stem(panel_spec)
+        attempt = self._next_attempt_number(stem)
         output_path = self._write_output(
             result.output_bytes if not output_dimensions else None,
-            panel_id,
+            stem,
             attempt,
             target_w,
             target_h,
@@ -719,6 +733,7 @@ class Orchestrator:
             preservation_context=preservation_context,
             effective_panelspec=effective_spec,
             surgical_context=surgical_context,
+            output_stem=stem,
         )
 
         return PanelResult(
@@ -855,7 +870,7 @@ class Orchestrator:
     def _write_output(
         self,
         raw_bytes: bytes | None,
-        panel_id: str,
+        stem: str,
         attempt: int,
         target_w: int,
         target_h: int,
@@ -864,7 +879,9 @@ class Orchestrator:
         Write the generated image to disk.
 
         Uses the post-processed image if available, otherwise writes raw bytes.
-        Output path: output/{panel_id}_attempt_{N}.png
+        Output path: output/{stem}_attempt_{N}.png, where stem is the display
+        stem (chapter_tag prefix + panel_id for scene panels, panel_id for
+        chapter panels). Provenance keys stay on the tag-free panel_id.
 
         Prior attempts are moved to output/archive/.
         """
@@ -874,12 +891,12 @@ class Orchestrator:
         archive_dir.mkdir(exist_ok=True)
 
         # Move any existing attempts to archive
-        existing = list(output_dir.glob(f"{panel_id}_attempt_*.png"))
+        existing = list(output_dir.glob(f"{stem}_attempt_*.png"))
         for f in existing:
             dest = archive_dir / f.name
             f.rename(dest)
 
-        output_path = output_dir / f"{panel_id}_attempt_{attempt:03d}.png"
+        output_path = output_dir / f"{stem}_attempt_{attempt:03d}.png"
 
         if hasattr(self, "_processed_image") and self._processed_image is not None:
             self._processed_image.save(output_path, "PNG")
@@ -891,10 +908,10 @@ class Orchestrator:
 
         return output_path
 
-    def _next_attempt_number(self, panel_id: str) -> int:
-        """Determine the next attempt number for a panel."""
-        existing = list(self.config.output_dir.glob(f"{panel_id}_attempt_*.png"))
-        archived = list((self.config.output_dir / "archive").glob(f"{panel_id}_attempt_*.png"))
+    def _next_attempt_number(self, stem: str) -> int:
+        """Determine the next attempt number for a panel (stem = display stem)."""
+        existing = list(self.config.output_dir.glob(f"{stem}_attempt_*.png"))
+        archived = list((self.config.output_dir / "archive").glob(f"{stem}_attempt_*.png"))
         all_attempts = existing + archived
         if not all_attempts:
             return 1
@@ -915,6 +932,7 @@ class Orchestrator:
         preservation_context: dict[str, Any] | None = None,
         effective_panelspec: dict[str, Any] | None = None,
         surgical_context: dict[str, Any] | None = None,
+        output_stem: str | None = None,
     ) -> None:
         """Append a Generation Record to the Provenance Store."""
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -941,7 +959,7 @@ class Orchestrator:
             },
             "outcome": {
                 "status": result.status,
-                "output_file": f"output/{panel_id}_attempt_{attempt:03d}.png",
+                "output_file": f"output/{output_stem or panel_id}_attempt_{attempt:03d}.png",
                 "api_response_id": result.api_response_id,
             },
             "post_processing": {

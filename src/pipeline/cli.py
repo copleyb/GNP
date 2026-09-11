@@ -544,30 +544,54 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
 
     config = load_config(args.project)
 
-    # Find the panel by parsing the chapter
-    parser = ChapterPlanParser(config)
-    try:
-        parse_result = parser.parse_chapter(args.chapter)
-    except (ParserError, FileNotFoundError) as e:
-        print(f"\033[31mParse error: {e}\033[0m")
+    # -- Source the PanelSpec + context window: chapter or scene -----------
+    if getattr(args, "scene", None):
+        if args.chapter:
+            print("Error: --chapter and --scene are mutually exclusive.")
+            return 1
+        if config.scene is None:
+            print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+            return 1
+        from pipeline.scene_parser import ScenePlanParser, SceneParserError
+        try:
+            parse_result = ScenePlanParser(config).parse_scene(args.scene)
+        except (SceneParserError, FileNotFoundError) as e:
+            print(f"\033[31mScene parse error: {e}\033[0m")
+            return 1
+        panels = sorted(parse_result.panels, key=lambda p: p.panel_spec["panel_id"])
+        matching = [p for p in panels if p.panel_spec["panel_id"] == args.panel]
+        if not matching:
+            print(f"Error: panel '{args.panel}' not found in scene {args.scene}")
+            return 1
+        panel_spec = matching[0].panel_spec
+        surrounding = _scene_surrounding(panels, args.panel)
+    elif not args.chapter:
+        print("Error: provide --chapter <n> or --scene <id>.")
         return 1
+    else:
+        parser = ChapterPlanParser(config)
+        try:
+            parse_result = parser.parse_chapter(args.chapter)
+        except (ParserError, FileNotFoundError) as e:
+            print(f"\033[31mParse error: {e}\033[0m")
+            return 1
 
-    matching = [p for p in parse_result.panels if p.panel_spec["panel_id"] == args.panel]
-    if not matching:
-        print(f"Error: panel '{args.panel}' not found in chapter {args.chapter}")
-        return 1
+        matching = [p for p in parse_result.panels if p.panel_spec["panel_id"] == args.panel]
+        if not matching:
+            print(f"Error: panel '{args.panel}' not found in chapter {args.chapter}")
+            return 1
 
-    panel_spec = matching[0].panel_spec
+        panel_spec = matching[0].panel_spec
 
-    # Build surrounding descriptions
-    page_id = panel_spec["page_id"]
-    page_panels = [p for p in parse_result.panels if p.panel_spec["page_id"] == page_id]
-    idx = next(i for i, p in enumerate(page_panels) if p.panel_spec["panel_id"] == args.panel)
-    surrounding: list[str] = []
-    if idx > 0:
-        surrounding.append(f"Previous panel: {page_panels[idx-1].panel_spec['description']}")
-    if idx < len(page_panels) - 1:
-        surrounding.append(f"Next panel: {page_panels[idx+1].panel_spec['description']}")
+        # Build surrounding descriptions (page-grouped, chapter mode)
+        page_id = panel_spec["page_id"]
+        page_panels = [p for p in parse_result.panels if p.panel_spec["page_id"] == page_id]
+        idx = next(i for i, p in enumerate(page_panels) if p.panel_spec["panel_id"] == args.panel)
+        surrounding: list[str] = []
+        if idx > 0:
+            surrounding.append(f"Previous panel: {page_panels[idx-1].panel_spec['description']}")
+        if idx < len(page_panels) - 1:
+            surrounding.append(f"Next panel: {page_panels[idx+1].panel_spec['description']}")
 
     # Build overrides dict from CLI args
     overrides: dict[str, Any] = {}
@@ -1066,7 +1090,8 @@ examples:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p_regen.add_argument("--chapter", type=int, required=True, help="Chapter number")
+    p_regen.add_argument("--chapter", type=int, help="Chapter number (legacy path)")
+    p_regen.add_argument("--scene", type=str, help="Scene ID (scene path, e.g. s702)")
     p_regen.add_argument("--panel", required=True, help="Panel ID to regenerate")
 
     # Backend override flags (reroll)
