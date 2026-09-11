@@ -1168,7 +1168,8 @@ Scene files contain no geometry. Reproducibility lives in the PanelSpec snapshot
 - **Non-floating elements use flow placement.** Strip panels flow left-to-right, all starting at the strip's y:0, and **may differ in height** (the equal-height strip rule is deliberately dropped — skyline rows are legal). Layout blocks flow top-down. Gutters and bleeds are project-level defaults (`project.yaml`).
 - Preset dimensions are used as-is — no overrides, fixed widths, no scaling.
 - **Validation: every element must fit the page, bleeds applied.** Overflow fails; under-fill is legal and an author choice.
-- **Floating elements** carry explicit coordinates specified by their parent: strip floats relative to the strip's top-left corner; layout floats relative to the page's top-left margin. Overlap legality and z-order are human-owned; array order = draw order.
+- **Floating elements** carry explicit coordinates specified by their parent: strip floats relative to the strip's top-left corner; layout floats relative to the page's top-left margin. Overlap legality and z-order are human-owned; array order = narrative order (the producer fills slots sequentially); floats always render above non-floating panels, and between floats, array order = draw order.
+  - *Rationale:* array position previously carried two unrelated meanings — narrative sequence (drives stage 2's beat-by-beat fill and the pn index) and draw order. These conflict for floats: an inset overlaying the splash must be listed adjacent to the splash to be written as an expansion of that moment, but must draw on top regardless of position. Comics already treat insets as definitionally on-top, so hardcoding that loses nothing.
 
 ### 16.4 Scene file format
 
@@ -1255,7 +1256,7 @@ Panel entries and the scene header accept optional additive fields. A future fie
 1. **panel_seed is deterministic** — derived from `sha256(panel_id)` (first byte, hex 00–FF). This makes parse a true pure function of (scene file, templates, config) per §16.5: identical inputs yield byte-identical PanelSpecs. (The chapter path uses a random seed at parse time.)
 2. **Float bounds.** Layout floats: page-margin-relative, must fit the usable area (§16.3). Strip floats: must fit within a page frame anchored at the strip's origin — a position-independent conservative check, since scene space is not page-bounded until post-production slices pages. A floating strip inside a layout is validated against the page frame via its absolute placement.
 3. **Strips require at least one non-floating panel** (a flow anchor). A strip of only floats has no width/height semantics and fails parse.
-4. **Floats never consume flow space** and never affect a strip's derived height — they are overlays (draw order = array order, §16.2).
+4. **Floats never consume flow space** and never affect a strip's derived height — they are overlays (always rendered above flow panels; array order is narrative, not z-order, §16.2).
 5. **Layout elements consume one full usable page of scene space** (they are pages, by design); loose strips/panels consume their own height, with project gutters between elements.
 6. **Scene-level floating elements are not in v1** (edge case; nothing in the current menu needs them). Elements at scene level flow top-down from the scene's top-left.
 
