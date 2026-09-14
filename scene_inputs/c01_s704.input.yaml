@@ -1,0 +1,12 @@
+# Scene input — Chapter 1 opening scene (starter example; edit freely).
+# The user owns STRUCTURE (elements); the producer does the rest (DESIGN.md §16.11).
+scene_id: s704
+chapter_tag: c01
+title: "Hood Upsets a Cart"
+
+synopsis: |
+  Hood buys a hot dog from a vendor. The two briefly exchange a joke as Hood pays, then casually waves over 
+  his shoulder as he walks away.
+
+elements:
+  - strip: s_eq3_25

@@ -1,0 +1,61 @@
+scene_id: s703
+title: Hood Upsets a Cart
+narrative: As evening settles over the bustling market, Hood finalizes a transaction
+  at a noodle stand, blissfully unaware of the chaos that is about to unfold. With
+  his noodles securely in hand, he turns on his heel, only to be caught off guard
+  by a stray cat darting across his path. His attempt to regain balance is unsuccessful,
+  leading to a comedic and chaotic tumble into a nearby vendor's cart. Everything
+  culminates with Hood sitting amidst the toppled cart's wreckage, noodles hilariously
+  strewn upon his head, as market-goers pause to stare in shock and amusement.
+elements:
+- layout: l_opening_4_inset
+panels:
+  s703_l01_st01_pn01:
+    description: The bustling evening market is alive with people moving between different
+      stands and stalls. Hood is at the center, standing in front of a noodle stand,
+      exchanging money with the vendor. The market is dimly lit, with colorful lights
+      from stalls providing a warm glow. The air feels lively and busy.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: lively
+  s703_l01_st02_pn01:
+    description: Hood, wearing his hood up as always, holds a steaming cup of noodles
+      in one hand. He looks relaxed and content, preparing to leave the stand as evening
+      shoppers bustle past in the background. The dim lights create long shadows across
+      the market path.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: content
+  s703_l01_st03_pn01:
+    description: A stray cat, small and scruffy, suddenly darts across Hood's path.
+      The cat is low to the ground, eyes wide and focused, creating a sudden rush
+      of movement in the otherwise steady market scene.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: close_up
+    mood: unexpected
+  s703_l01_st03_pn02:
+    description: Hood awkwardly stumbles as he tries to avoid the cat, arms flailing,
+      noodles precariously balanced in his hand. His body leans dangerously forward
+      as he struggles to regain balance, showing the tension of the moment.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: tense
+  s703_l01_st03_pn03:
+    description: Hood crashes into a vendor's cart, causing it to tilt and collapse.
+      The cart's contents scatter chaotically, and Hood ends up sitting amidst the
+      wreckage. Noodles comically adorn his head as onlookers freeze in surprise,
+      their eyes wide, while the cat scampers away unharmed.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: chaotic
+chapter_tag: c01

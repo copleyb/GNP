@@ -1,0 +1,42 @@
+scene_id: s704
+title: Hood Upsets a Cart
+narrative: Hood strolls up to a bustling hot dog stand, greeted by the vendor's cheerful
+  demeanor. After exchanging a lighthearted joke, Hood digs into his pocket, pulls
+  out some cash, and pays for his hot dog. With a casual wave over his shoulder, he
+  walks away, savoring both his meal and the brief, friendly encounter.
+elements:
+- strip: s_eq3_25
+panels:
+  s704_l01_st01_pn01:
+    description: In a bustling city exterior, Hood approaches a lively hot dog stand
+      that is tucked between towering brutalist buildings. The stand is busy with
+      a few customers. Hood, in his spattered white hoodie with the hood up, baggy
+      charcoal cargo pants, and 80's style sneakers, is to the left, walking purposefully
+      as deep shadows stretch across the damp asphalt.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: energetic
+  s704_l01_st01_pn02:
+    description: A medium shot shows Hood at the front of the hot dog stand. The vendor,
+      a cheerful individual with a bright, friendly expression, holds a metal tong
+      in one hand over the grill. Hood, with his hands in his hoodie pocket, leans
+      slightly towards the vendor, signaling a friendly and warm engagement. The neon
+      lights from nearby buildings cast colorful reflections on the vendor's cart.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: warm
+  s704_l01_st01_pn03:
+    description: A close-up captures Hood's gloved hand handing a crumpled bill to
+      the vendor. The hot dog in his other hand, wrapped in a simple napkin, is partially
+      visible. The vendor's hand is shown mid-motion, about to take the payment. Reflections
+      of the neon lights play softly on their hands, adding a dynamic contrast.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: close_up
+    mood: playful
+chapter_tag: c01

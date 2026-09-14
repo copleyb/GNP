@@ -1,0 +1,15 @@
+# Scene input — Chapter 1 opening scene (starter example; edit freely).
+# The user owns STRUCTURE (elements); the producer does the rest (DESIGN.md §16.11).
+scene_id: s703
+chapter_tag: c01
+title: "Hood Upsets a Cart"
+
+synopsis: |
+  Evening at the market. Hood completes a transaction to buy some noodles, then as he turns to 
+  leave he trips over a stray cat and wildly stumbles into a vendor cart, knocking it over in chaos
+  and ending the scene sitting hilariously pathetic amongst the wreckage with a mess of spilled
+  noodles on his head. The whole scene should be comic, dynamic, and capture the rise and fall
+  of the action succinctly.
+
+elements:
+  - layout: l_opening_4_inset

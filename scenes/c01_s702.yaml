@@ -1,0 +1,167 @@
+scene_id: s702
+title: Market Morning
+narrative: In the early hours of the day, Alyssa strolls through the bustling market
+  street, a portrait of casual alertness as she moves meanderly from stall to stall.
+  Vendors begin their day with energetic calls, setting up their awnings as a stray
+  cat weaves between the market-goers. Alyssa is aware of a shadow trailing her—a
+  figure known as Hood—who seamlessly blends into the crowd, staying just out of her
+  immediate sphere. Alyssa uses her reflection in a shop window to confirm Hood's
+  presence but keeps her demeanor unchanged and diverts her path slightly. The scene
+  culminates as Alyssa confidently turns down a narrow side alley, acknowledging Hood's
+  persistent pursuit without turning to look back.
+elements:
+- layout: l_opening_4
+- layout: l_cinematic_9
+- strip: s_eq2_50
+panels:
+  s702_l01_st01_pn01:
+    description: A wide view of a bustling market street in the early morning. The
+      air is filled with noise and activity as vendors set up their stalls. Awnings
+      snap open with vigor. Alyssa strides leisurely through the center of the frame,
+      her jacket's blue collar tab visible. The overall scene is rich with early morning
+      energy and anticipation.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: wide
+    mood: lively
+  s702_l01_st02_pn01:
+    description: A medium shot of Alyssa in profile as she walks past a fruit stall.
+      The vendor, a middle-aged man in front of the stand, is energetically arranging
+      citrus fruits with a beaming smile. Alyssa's expression remains calm and observant
+      as she glances towards the stall, her attention seemingly casual yet focused.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: medium
+    mood: vibrant
+  s702_l01_st02_pn02:
+    description: Close-up of Alyssa's reflection in a shop window. Her perceptive
+      eyes are sharply focused on something behind her as her reflection reveals,
+      hint of awareness about the presence of Hood. The mirrored image is clear and
+      strong against the vividly outlined market scene around it.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: close_up
+    mood: alert
+  s702_l01_st02_pn03:
+    description: A low-angle view of a stray cat weaving between the legs of market-goers.
+      The cat is agile and quick, its sleek form captured mid-motion, contrasting
+      against the busy background. The scene conveys a sense of movement and chaos
+      that accompanies the early morning market hustle.
+    characters: []
+    environment: city_exterior
+    shot_type: low_angle
+    mood: dynamic
+  s702_l02_st01_pn01:
+    description: A wide shot of the market street, bustling with activity from vendors
+      setting up and customers exploring the stalls. The market displays vibrant colors
+      against the brutalist city backdrop. Alyssa is visible on the left, casually
+      walking among the crowd, her posture relaxed yet attentive.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: wide
+    mood: busy and lively
+  s702_l02_st01_pn02:
+    description: Medium shot of Alyssa walking along the street, her eyes subtly scanning
+      the surroundings as she passes a stall with bright fabrics. She is in the center,
+      with the bustling activity behind her. Her posture is poised and perceptive.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: medium
+    mood: alert yet composed
+  s702_l02_st01_pn03:
+    description: Close-up on Alyssa's face, her head slightly turned, capturing her
+      perceptive, kind eyes subtly glancing at a reflective shop window. The background
+      blurs to focus on her expression of quiet vigilance.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: close_up
+    mood: focused
+  s702_l02_st02_pn01:
+    description: Extreme close-up of the shop window reflecting both Alyssa's face
+      and the blurred silhouette of Hood in the background. The reflection is slightly
+      distorted, capturing Alyssa’s piercing gaze and the obscure shadow keeping pace.
+    characters:
+    - id: alyssa
+    - id: hood
+    environment: city_exterior
+    shot_type: extreme_close_up
+    mood: tense observation
+  s702_l02_st02_pn02:
+    description: Medium shot from behind Alyssa, who is shifting her path slightly
+      to the right. Hood can be seen in the distance, his hooded figure blending into
+      the crowd's chaos, maintaining a steady pace behind her.
+    characters:
+    - id: alyssa
+    - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: subtle tension
+  s702_l02_st02_pn03:
+    description: Wide shot of the market street, focusing on vendors energetically
+      interacting with early customers. Alyssa is a small figure among the crowd,
+      now heading toward a side street, her path deliberate but casual.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: wide
+    mood: bustling
+  s702_l02_st03_pn01:
+    description: Medium shot of Hood, captured mid-step as he skillfully navigates
+      the throng of people, staying further back but never losing sight of Alyssa.
+      His hood is up, and his face remains obscured, adding to his enigmatic presence.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: mysterious and focused
+  s702_l02_st03_pn02:
+    description: Close-up of a vendor setting up a vibrant awning, juxtaposed against
+      the dark and moody environment of the city. This panel highlights the contrasting
+      energies of the market's lively activities and the city's looming structures.
+    characters: []
+    environment: city_exterior
+    shot_type: close_up
+    mood: contrasting energies
+  s702_l02_st03_pn03:
+    description: Wide shot of Alyssa confidently turning down a narrow alleyway, leaving
+      the colorful chaos of the market behind. Her figure is upright, projecting a
+      sense of quiet determination and awareness. Hood's silhouette is barely visible
+      at the alley entrance, his presence a persistent shadow.
+    characters:
+    - id: alyssa
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: confident and persistent
+  s702_l03_st01_pn01:
+    description: A medium shot capturing Alyssa as she steps deeper into the narrow
+      alleyway. She walks with a purpose, her off-white technical jacket contrasting
+      sharply with the dark shadows of the alley. Her posture is confident, head held
+      high, her braid softly swaying behind her. The alley walls are comprised of
+      worn bricks and a few scattered neon reflections from the distant street signs.
+      The atmosphere feels clandestine and focused.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: medium
+    mood: clandestine
+  s702_l03_st01_pn02:
+    description: Wide shot showing Alyssa further down the alley with Hood maintaining
+      a tactful distance behind her. Hood's figure is barely illuminated, mostly a
+      silhouette against the street's ethereal glow creeping into the alley. The setting
+      highlights the sharp angles and shadows of the urban environment, emphasizing
+      the suspense and the contrast between the isolated alley and the vibrant market
+      left behind.
+    characters:
+    - id: alyssa
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: suspenseful
+chapter_tag: c01
