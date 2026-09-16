@@ -1,0 +1,44 @@
+# enforcer.yaml — Character definition for The Enforcer, a class of cyborg in the Robot Army.
+
+character_id: enforcer
+display_name: "Enforcer"
+version: "1.0.0"
+
+physical_description:
+  build: "average"
+  height_relative: "average"
+  hair: "none; cyborg"
+  eyes: "glowing blue 'X' shaped"
+  skin: "oily metallic robotic"
+  distinctive_features:
+    - "mechanized"
+    - "Robot Army emblem on chest"
+    - "cybernetic robot"
+
+costumes:
+  default:
+    description: "Made of dirty, oily, rusty metal. No clothes."
+  variants:
+    - variant_id: roadwork
+      description: "Road construction gear. Hood's hat, bandana, and glasses are still in place, but he's wearing grubby work pants, steel-toed boots, and a bright, vivid oversized yellow reflective jacket."
+
+# identity is costume-agnostic — describes the person, not the outfit.
+# The Parser composes the full identity string at parse time by appending the costume description.
+prompt_tokens:
+  identity: "The Enforcer, the basic infantry/general purpose unit of the Robot Army. An unimaginative, grunt melee soldier."
+  exclusions:
+    - "no empathy or feeling"
+
+references:
+  - ref_id: enforcer_1
+    file: enforcer/enforcer_1.png
+    purpose: front_neutral
+    priority: 1
+    costume: default
+    notes: "Front view, standing, menacing pose."
+  - ref_id: enforcer_2
+    file: enforcer/enforcer_2.png
+    purpose: multi-pose
+    priority: 2
+    costume: default
+    notes: "Three angles showing front, back, and side."
