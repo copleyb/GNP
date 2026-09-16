@@ -30,47 +30,79 @@
     },
     "physical_description": {
       "type": "object",
-      "description": "Human-readable description. Used by the validation layer (GPT-4o prompts) — NOT by the prompt compiler.",
-      "required": ["build", "height_relative", "hair", "eyes", "skin"],
+      "description": "Human-readable description. Used by the validation layer (GPT-4o prompts) \u2014 NOT by the prompt compiler.",
+      "required": [
+        "build",
+        "height_relative",
+        "hair",
+        "eyes",
+        "skin"
+      ],
       "additionalProperties": false,
       "properties": {
-        "build": { "type": "string" },
-        "height_relative": { "type": "string" },
-        "hair": { "type": "string" },
-        "eyes": { "type": "string" },
-        "skin": { "type": "string" },
+        "build": {
+          "type": "string"
+        },
+        "height_relative": {
+          "type": "string"
+        },
+        "hair": {
+          "type": "string"
+        },
+        "eyes": {
+          "type": "string"
+        },
+        "skin": {
+          "type": "string"
+        },
         "distinctive_features": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
     "costumes": {
       "type": "object",
-      "required": ["default"],
+      "required": [
+        "default"
+      ],
       "additionalProperties": false,
       "properties": {
         "default": {
           "type": "object",
-          "required": ["description"],
+          "required": [
+            "description"
+          ],
           "additionalProperties": false,
           "properties": {
-            "description": { "type": "string" }
+            "description": {
+              "type": "string"
+            }
           }
         },
         "variants": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["variant_id", "description", "context"],
+            "required": [
+              "variant_id",
+              "description"
+            ],
             "additionalProperties": false,
             "properties": {
               "variant_id": {
                 "type": "string",
                 "pattern": "^[a-z0-9_]+$"
               },
-              "description": { "type": "string" },
-              "context": { "type": "string" }
+              "description": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string",
+                "description": "Optional narrative context for when this variant applies (documentation only; not read by the pipeline)."
+              }
             }
           }
         }
@@ -79,17 +111,21 @@
     "prompt_tokens": {
       "type": "object",
       "description": "Compiler-consumed strings. identity is inserted verbatim into every prompt featuring this character.",
-      "required": ["identity"],
+      "required": [
+        "identity"
+      ],
       "additionalProperties": false,
       "properties": {
         "identity": {
           "type": "string",
-          "description": "Canonical short-form description used verbatim in prompts. Curate carefully — the compiler does not reconstruct this from physical_description."
+          "description": "Canonical short-form description used verbatim in prompts. Curate carefully \u2014 the compiler does not reconstruct this from physical_description."
         },
         "exclusions": {
           "type": "array",
           "description": "Negative prompt tokens specific to this character. Compiled into every request featuring this character.",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
@@ -99,7 +135,12 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["ref_id", "file", "purpose", "priority"],
+        "required": [
+          "ref_id",
+          "file",
+          "purpose",
+          "priority"
+        ],
         "additionalProperties": false,
         "properties": {
           "ref_id": {
@@ -112,8 +153,15 @@
           },
           "purpose": {
             "type": "string",
-            "enum": ["front_neutral", "three_quarter", "expression_range", "costume_detail", "action"],
-            "description": "Semantic role of this reference image."
+            "enum": [
+              "front_neutral",
+              "three_quarter",
+              "expression_range",
+              "costume_detail",
+              "action",
+              "costume"
+            ],
+            "description": "Semantic role of this reference image. 'costume' = reference for a non-default costume variant."
           },
           "priority": {
             "type": "integer",
@@ -122,6 +170,11 @@
           },
           "notes": {
             "type": "string"
+          },
+          "costume": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "description": "Costume variant this reference belongs to. Optional; the Wardrobe defaults to 'default' when omitted."
           }
         }
       }
