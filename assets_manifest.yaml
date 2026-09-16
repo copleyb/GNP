@@ -1,10 +1,10 @@
 version: '1.0'
-generated_at: '2026-08-29T23:44:46Z'
+generated_at: '2026-09-16T04:00:14Z'
 project_id: iron-city
 assets:
 - path: characters/alyssa/alyssa_morning_routine.png
-  sha256: ff0ea21762a53e90354ab4b25bbd8c2bca199d0e5db9cb6eecd6b6b074ef4641
-  size_bytes: 2472657
+  sha256: 5ef02732dc8684b8f4bbff4c37973a2609796262d808ee30381ce377674c7159
+  size_bytes: 2340129
   asset_type: character
   entity_id: alyssa
   ref_id: alyssa_morning_routine
@@ -23,6 +23,20 @@ assets:
   entity_id: alyssa
   ref_id: ref_three_quarter
   purpose: three_quarter
+- path: characters/enforcer/enforcer_1.png
+  sha256: cd6e224d011576dca07df29a1ff28a83376d1815653bc80f2654cf5cd368e4f4
+  size_bytes: 1697622
+  asset_type: character
+  entity_id: enforcer
+  ref_id: enforcer_1
+  purpose: front_neutral
+- path: characters/enforcer/enforcer_2.png
+  sha256: b1be8df6738f4e73971a90f4f7f2ef5b8dd64fa11834a7735e0aa3609d28441c
+  size_bytes: 2800342
+  asset_type: character
+  entity_id: enforcer
+  ref_id: enforcer_2
+  purpose: multi_pose
 - path: characters/hood/ref_front.png
   sha256: 1943c7dda3960e4ca32f059d2b5675d25981645628eae5ec9c3a44221fd4f023
   size_bytes: 601431
