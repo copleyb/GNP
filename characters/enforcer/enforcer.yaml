@@ -35,7 +35,7 @@ references:
     notes: "Front view, standing, menacing pose."
   - ref_id: enforcer_2
     file: enforcer/enforcer_2.png
-    purpose: multi-pose
+    purpose: multi_pose
     priority: 2
     costume: default
     notes: "Three angles showing front, back, and side."
