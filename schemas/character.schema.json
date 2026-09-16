@@ -159,7 +159,8 @@
               "expression_range",
               "costume_detail",
               "action",
-              "costume"
+              "costume",
+              "multi_pose"
             ],
             "description": "Semantic role of this reference image. 'costume' = reference for a non-default costume variant."
           },
