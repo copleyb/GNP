@@ -12,8 +12,9 @@ physical_description:
   skin: "oily metallic robotic"
   distinctive_features:
     - "mechanized"
-    - "Robot Army emblem on chest"
     - "cybernetic robot"
+    - "Robot Army emblem on chest: a stylized human skull set inside a gear ring, glowing purple-pink, painted in weathered chipscratched metal"
+
 
 costumes:
   default:
