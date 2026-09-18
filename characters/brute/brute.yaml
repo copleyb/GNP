@@ -5,8 +5,8 @@ display_name: "Brute"
 version: "1.0.0"
 
 physical_description:
-  build: "average"
-  height_relative: "average"
+  build: "hulking"
+  height_relative: "very tall"
   hair: "none; cyborg"
   eyes: "glowing blue pinpoints"
   skin: "oily metallic robotic"

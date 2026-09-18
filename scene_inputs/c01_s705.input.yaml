@@ -1,0 +1,14 @@
+# The user owns STRUCTURE (elements); the producer does the rest (DESIGN.md §16.11).
+scene_id: s705
+chapter_tag: c01
+title: "The Brawl"
+
+synopsis: |
+  Hood fights The Enforcer. This scene consists of a melee brawl between the two, with both taking
+    significant injuries and damage with a mix of wide-angle dynamic attacks/dodges/counterattacks 
+    and close-ups of telling blows landing. Ensure the continuity narrative accounts for any damage
+    to the characters or their clothing/accessories. In the last two panels, Hood should see an
+    opportunity and try to escape the fight, only to encounter The Brute blocking his path.
+
+elements:
+  - layout: l_cinematic_8
