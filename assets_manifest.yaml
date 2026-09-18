@@ -1,5 +1,5 @@
 version: '1.0'
-generated_at: '2026-09-16T04:00:14Z'
+generated_at: '2026-09-18T05:05:50Z'
 project_id: iron-city
 assets:
 - path: characters/alyssa/alyssa_morning_routine.png
@@ -23,6 +23,20 @@ assets:
   entity_id: alyssa
   ref_id: ref_three_quarter
   purpose: three_quarter
+- path: characters/brute/brute_1.png
+  sha256: d01536108bc18a47d9b05284c920afcfb5057a47d50f200f94f12be1d3bfc46f
+  size_bytes: 2338724
+  asset_type: character
+  entity_id: brute
+  ref_id: brute_1
+  purpose: front_neutral
+- path: characters/brute/brute_2.png
+  sha256: ec85c50b3cb861365ea9e0c1050d592c6675c047cc8dfad31fd079272846b9b5
+  size_bytes: 2005006
+  asset_type: character
+  entity_id: brute
+  ref_id: brute_2
+  purpose: multi_pose
 - path: characters/enforcer/enforcer_1.png
   sha256: cd6e224d011576dca07df29a1ff28a83376d1815653bc80f2654cf5cd368e4f4
   size_bytes: 1697622

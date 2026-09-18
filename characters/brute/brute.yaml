@@ -1,0 +1,42 @@
+# brute.yaml — Character definition for The Brute, a class of cyborg in the Robot Army.
+
+character_id: brute
+display_name: "Brute"
+version: "1.0.0"
+
+physical_description:
+  build: "average"
+  height_relative: "average"
+  hair: "none; cyborg"
+  eyes: "glowing blue pinpoints"
+  skin: "oily metallic robotic"
+  distinctive_features:
+    - "mechanized"
+    - "cybernetic robot"
+    - "Robot Army emblem on chest: a stylized human skull set inside a gear ring, glowing purple-pink, painted in weathered chipscratched metal"
+
+
+costumes:
+  default:
+    description: "Made of dirty, oily, rusty metal. No clothes."
+
+# identity is costume-agnostic — describes the person, not the outfit.
+# The Parser composes the full identity string at parse time by appending the costume description.
+prompt_tokens:
+  identity: "The Brute, the heavy assault unit of the Robot Army. High strength, low speed, hard to kill."
+  exclusions:
+    - "no empathy or feeling"
+
+references:
+  - ref_id: brute_1
+    file: brute/brute_1.png
+    purpose: front_neutral
+    priority: 1
+    costume: default
+    notes: "Front view, standing, menacing pose."
+  - ref_id: brute_2
+    file: brute/brute_2.png
+    purpose: multi_pose
+    priority: 2
+    costume: default
+    notes: "Three angles showing front, back, and side."
