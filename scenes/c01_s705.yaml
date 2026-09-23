@@ -1,0 +1,96 @@
+scene_id: s705
+title: The Brawl
+narrative: The intense brawl between Hood and The Enforcer unfolds in a series of
+  rapid exchanges and strategic maneuvers. They engage in a vicious melee, each demonstrating
+  impressive skill and endurance as they exchange powerful blows. Hood manages to
+  dodge and counterattack with agility, though not without sustaining some injuries
+  and tears to his clothing. The Enforcer, a formidable opponent, dishes out punishing
+  strikes, leaving his own armor slightly battered. As the fight progresses, both
+  combatants are visibly worn down, and just as Hood spots an opening to escape, he
+  prepares to make his move. However, his path is suddenly blocked by The Brute, a
+  menacing figure who appears just as Hood attempts to flee the violence.
+elements:
+- layout: l_cinematic_8
+panels:
+  s705_l01_st01_pn01:
+    description: In the shadowy city exterior, Hood and The Enforcer stand facing
+      each other amidst the reflections on the damp asphalt. Hood is poised, his hood
+      pulled tight, dark gloves ready in front of him. The Enforcer, gleaming slightly
+      under the sparse neon signage, raises his fists, blue eyes focused intently
+      on his opponent.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: wide
+    mood: tense
+  s705_l01_st01_pn02:
+    description: A medium shot catches Hood ducking under a wild swing from The Enforcer.
+      Hood's dark hoodie is still pristine as he moves swiftly, his body crouched
+      low to avoid the powerful strike aimed at him.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: medium
+    mood: dynamic
+  s705_l01_st02_pn01:
+    description: Close-up of Hood's fist connecting with The Enforcer's metallic jaw,
+      causing a visible impact. The Enforcer's head tilts back slightly, the blue
+      glow in his eyes momentarily flickering, capturing the brief moment of recoil.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: close_up
+    mood: intense
+  s705_l01_st02_pn02:
+    description: The Enforcer counters with a forceful kick that catches Hood off
+      guard. Hood is thrown backwards, his jacket tearing at the sleeve as he stumbles,
+      struggling to regain his balance.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: medium
+    mood: action-packed
+  s705_l01_st02_pn03:
+    description: Hood, now steady, retaliates with a swift kick to The Enforcer's
+      midsection. The impact is marked by a dent appearing on The Enforcer's armor,
+      captured in a close-up, emphasizing the power behind Hood's attack.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: close_up
+    mood: dramatic
+  s705_l01_st02_pn04:
+    description: Wide shot showing both fighters worn down, their energy and diligence
+      evident as they circle each other. Hood's jacket bears the mark of ongoing battle,
+      while The Enforcer's armor is visibly battered.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: wide
+    mood: gritty
+  s705_l01_st03_pn01:
+    description: An extreme close-up captures Hood's face in shadow, his hood obscuring
+      most of his features, determined eyes fixed intensely on the path ahead as he
+      spots an opening to flee the fight.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: extreme_close_up
+    mood: focused
+  s705_l01_st03_pn02:
+    description: The Brute stands imposingly in the foreground, blocking Hood's path.
+      His metallic body emanates menace under the sparse lighting, leaving no room
+      for escape. Hood hesitates in the background, realizing the predicament.
+    characters:
+    - id: hood
+    - id: brute
+    environment: city_exterior
+    shot_type: low_angle
+    mood: menacing
+chapter_tag: c01
