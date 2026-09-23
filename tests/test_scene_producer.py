@@ -203,6 +203,21 @@ class TestStage1Chunker:
 
 class TestStage2ElementCalls:
 
+    def test_element_prompt_requires_character_exclusions_and_accountability(self, config):
+        mock = standard_mock()
+        make_producer(config, mock).produce_scene(FIXTURES_DIR / "fixture_scene_input.yaml")
+        element_systems = [system for name, system, _ in mock.prompts if name == "element_panels"]
+        assert len(element_systems) == 2
+        for system in element_systems:
+            assert "Respect character and environment exclusions and style forbidden elements" in system
+            assert "every character named or depicted in the description MUST appear" in system
+            assert "every character in the array MUST be described as present" in system
+            assert "Check each panel separately" in system
+        # The source YAML exclusions are actually supplied to the stage-2 call.
+        element_users = [user for name, _, user in mock.prompts if name == "element_panels"]
+        assert all("never show eyes or face" in user for user in element_users)
+
+
     def test_first_element_prompt_no_handoff(self, config):
         mock = standard_mock()
         producer = make_producer(config, mock)
