@@ -1,0 +1,13 @@
+# The user owns STRUCTURE (elements); the producer does the rest (DESIGN.md §16.11).
+scene_id: s706
+chapter_tag: c01
+title: "Arm Wrestle"
+
+synopsis: |
+  Hood and The Enforcer arm wrestle each other in the city bar. They eye each other up menacingly,
+    sit at a table and clasp hands, then arm wrestle in an increasingly strained deadlock. There
+    is no resolution to the contest; the scene ends on a panel viewing the bar from the outside,
+    the two contestants silhouetted in the window, still straining.    
+
+elements:
+  - layout: l_cinematic_7

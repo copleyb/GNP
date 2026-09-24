@@ -1,0 +1,91 @@
+scene_id: s706
+title: Arm Wrestle
+narrative: Inside a dimly lit city bar, the air is thick with tension as Hood and
+  The Enforcer lock eyes across a worn wooden table. Both men exude an aura of sheer
+  determination as they sit down and clasp hands in a firm grip, each silently challenging
+  the other. The venue is filled with onlookers who gather around, senses heightened
+  as the arm wrestling battle begins. Muscles flex and beads of sweat appear on their
+  brows as the contest escalates into a deadlock, neither willing to give an inch.
+  Eyes narrow and gritted teeth outline faces locked in fierce concentration. The
+  scene concludes with an outside view of the bar, capturing their silhouettes in
+  the window, still straining against each other, as the world continues on, oblivious
+  to the ongoing stalemate inside.
+elements:
+- layout: l_cinematic_7
+panels:
+  s706_l01_st01_pn01:
+    description: Inside the dimly lit city bar, Hood and The Enforcer are seated at
+      a worn wooden table in the center of the room. The bar's dingy lighting casts
+      deep shadows over their faces, adding to the ominous look of their locked gazes.
+      Onlookers quietly gather around, their faces reflecting a mix of curiosity and
+      excitement as the two men prepare to begin the arm wrestling match.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_bar_interior
+    shot_type: wide
+    mood: tense anticipation
+  s706_l01_st01_pn02:
+    description: A close-up shot focuses on the clasped hands of Hood and The Enforcer,
+      capturing the moment they grip each other's palms with intimidating force. Dirt
+      and grime rest on their knuckles, while the tension in their muscles is palpable,
+      foreshadowing the struggle to come.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_bar_interior
+    shot_type: close_up
+    mood: determined
+  s706_l01_st02_pn01:
+    description: Medium shot of Hood and The Enforcer from the side, both men leaning
+      into the table with dominant postures. Hood wears his signature hoodie pulled
+      up, obscuring his face, while The Enforcer's glowing blue 'X' eyes stare forward,
+      expressionless. The wooden table creaks under the pressure of their weight.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_bar_interior
+    shot_type: medium
+    mood: confrontational
+  s706_l01_st02_pn02:
+    description: A dynamic, low-angle shot emphasizes the strength and persistence
+      in their arms as veins visibly bulge from the exertion, highlighting the tense
+      atmosphere of the contest. The focus on their forearms captures the unyielding
+      nature of their struggle.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_bar_interior
+    shot_type: low_angle
+    mood: intense
+  s706_l01_st02_pn03:
+    description: An extreme close-up of The Enforcer's glowing blue 'X' eyes, devoid
+      of emotion, illustrating the cold mechanical determination that drives him.
+      Shadows cross the surface of his face, enhancing the mechanical, eerie aura.
+    characters:
+    - id: enforcer
+    environment: city_bar_interior
+    shot_type: extreme_close_up
+    mood: steely concentration
+  s706_l01_st03_pn01:
+    description: In a medium shot, Hood leans forward, his hidden face revealed just
+      by the outline of his jaw set in determination. His posture is rigid, unrelenting,
+      as sweat beads above his brow, soaking into his white hoodie.
+    characters:
+    - id: hood
+    environment: city_bar_interior
+    shot_type: medium
+    mood: resolved
+  s706_l01_st03_pn02:
+    description: An outside view of the bar through a large grimy window, silhouettes
+      of Hood and The Enforcer against the soft glow of the interior lights. Their
+      forms locked in the same position as seen earlier, captured in stark relief,
+      highlighting the stalemate and the relentless energy frozen in time inside the
+      bar.
+    characters:
+    - id: hood
+    - id: enforcer
+    environment: city_exterior
+    shot_type: wide
+    mood: eternal struggle
+chapter_tag: c01
