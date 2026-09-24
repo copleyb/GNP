@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from pipeline.config import load_config
 from pipeline.scene_parser import ScenePlanParser
 from pipeline.scene_parser import SceneParserError
+from roster_context import CONCEALMENT_MARKER
 from scene_producer import (
     SceneProducer,
     SceneProducerError,
@@ -213,9 +214,15 @@ class TestStage2ElementCalls:
             assert "every character named or depicted in the description MUST appear" in system
             assert "every character in the array MUST be described as present" in system
             assert "Check each panel separately" in system
-        # The source YAML exclusions are actually supplied to the stage-2 call.
+        # The source YAML exclusions are actually supplied to the stage-2 call
+        # — promoted to IDENTITY RULE lines (roster_context convention).
         element_users = [user for name, _, user in mock.prompts if name == "element_panels"]
-        assert all("never show eyes or face" in user for user in element_users)
+        assert all("IDENTITY RULE — never show eyes or face." in user for user in element_users)
+        # Concealed features are suppressed as writing cues; visible ones survive.
+        assert all(CONCEALMENT_MARKER not in user for user in element_users)
+        assert all("dark brown" not in user for user in element_users)
+        assert all("glowing blue 'X' shaped eyes" in user for user in element_users)
+        assert all("Exclusions: never show eyes or face" not in user for user in element_users)
 
 
     def test_first_element_prompt_no_handoff(self, config):

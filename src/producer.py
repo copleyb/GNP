@@ -25,6 +25,8 @@ from typing import Any
 import yaml
 from jsonschema import validate as validate_schema
 
+from roster_context import build_character_context_lines
+
 
 class ChapterPlanProducer:
     """
@@ -224,19 +226,12 @@ Your output will be validated against a strict schema. If any constraint is viol
         """Build the user message with the synopsis and injected project context."""
         context = self.assemble_context()
 
-        # Format characters
+        # Format characters — shared deterministic builder
+        # (src/roster_context.py): concealed features are not injected as
+        # cues; exclusions are promoted to IDENTITY RULE lines.
         char_lines = []
         for c in context["characters"]:
-            char_lines.append(
-                f"  - {c['character_id']} ({c['display_name']}): {c['physical_description']['build']}, "
-                f"{c['physical_description']['hair']} hair, {c['physical_description']['eyes']} eyes. "
-                f"Default costume: {c['costume_default']}"
-            )
-            if c.get("costume_variants"):
-                for v in c["costume_variants"]:
-                    char_lines.append(f"    Variant '{v['variant_id']}': {v['description']}")
-            if c.get("exclusions"):
-                char_lines.append(f"    Exclusions: {', '.join(c['exclusions'])}")
+            char_lines.extend(build_character_context_lines(c))
 
         # Format environments
         env_lines = []

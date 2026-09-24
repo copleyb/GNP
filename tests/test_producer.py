@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pipeline.config import load_config
 from producer import ChapterPlanProducer
+from roster_context import CONCEALMENT_MARKER
 
 
 # -- Test data --------------------------------------------------------------
@@ -256,6 +257,19 @@ def test_system_prompt():
     assert "Only use layout_ids that exist" in prompt
     assert "panel count" in prompt.lower()
     assert "exclusions" in prompt.lower()
+
+
+def test_user_prompt_exclusion_cue_convention():
+    """Roster context follows the DESIGN.md exclusion-cue convention."""
+    producer = _get_producer()
+    prompt = producer._build_user_prompt(SAMPLE_SYNOPSIS, 1)
+    # Hood: concealed features suppressed, exclusion promoted to a rule.
+    assert CONCEALMENT_MARKER not in prompt
+    assert "dark brown" not in prompt
+    assert "IDENTITY RULE — never show eyes or face." in prompt
+    assert "Exclusions: never show eyes or face" not in prompt
+    # Enforcer: visible signature eyes survive suppression.
+    assert "glowing blue 'X' shaped eyes" in prompt
 
 
 def test_user_prompt():

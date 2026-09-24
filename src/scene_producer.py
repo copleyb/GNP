@@ -43,6 +43,7 @@ from jsonschema import validate as validate_schema
 
 from pipeline.scene_parser import ScenePlanParser, SceneParseResult
 from pipeline.templates import TemplateRegistry
+from roster_context import build_character_context_lines
 
 
 # -- Exceptions ---------------------------------------------------------------
@@ -443,18 +444,12 @@ Your output shape and roster IDs are validated. Character-to-description agreeme
     ) -> str:
         kind, ref = next(iter(element.items()))
 
-        # Roster context (chapter-producer pattern)
+        # Roster context (chapter-producer pattern) — shared deterministic
+        # builder (src/roster_context.py): concealed features are not
+        # injected as cues; exclusions are promoted to IDENTITY RULE lines.
         char_lines = []
         for c in self._load_character_context():
-            char_lines.append(
-                f"  - {c['character_id']} ({c['display_name']}): {c['physical_description']['build']}, "
-                f"{c['physical_description']['hair']} hair, {c['physical_description']['eyes']} eyes. "
-                f"Default costume: {c['costume_default']}"
-            )
-            for v in c.get("costume_variants"):
-                char_lines.append(f"    Variant '{v['variant_id']}': {v['description']}")
-            if c.get("exclusions"):
-                char_lines.append(f"    Exclusions: {', '.join(c['exclusions'])}")
+            char_lines.extend(build_character_context_lines(c))
 
         env_lines = []
         for e in self._load_environment_context():
