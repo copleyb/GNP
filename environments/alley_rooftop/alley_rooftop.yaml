@@ -1,0 +1,23 @@
+# alley_rooftop.yaml — Environment definition for the alley rooftop area.
+
+environment_id: alley_rooftop
+display_name: "Alley Rooftop"
+version: "1.0.0"
+
+description: >
+  Rooftops surrounding a wide, remote alley with an elevated train line passing between
+  the city buildings. Dark, damp, graffiti-covered brick walls and urban buildings surround
+  the area, with a prominent skull mural on the building across from the water tower.
+
+prompt_tokens:
+  identity: "rooftop view of a dingy, graffiti-covered alley under the elevated train tracks, remote and somewhat foreboding"
+  exclusions:
+    - "no greenery"
+    - "no clear sky"
+
+references:
+  - ref_id: ref_establishing
+    file: alley_rooftop/ref_establishing.png
+    purpose: establishing_shot
+    priority: 1
+    notes: "Establishing shot of the main rooftop, looking down on the alley."
