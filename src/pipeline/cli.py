@@ -87,7 +87,21 @@ def _print_page_result(result: PageResult) -> None:
 # -- Command: produce --------------------------------------------------------
 
 def cmd_produce(args: argparse.Namespace) -> int:
-    """Generate a Chapter Plan from a synopsis using GPT-4o."""
+    """Produce a scene (default) or a legacy chapter plan (Phase 3 cutover)."""
+    if getattr(args, "chapter", None) and getattr(args, "input", None):
+        print("Error: <input> and --chapter are mutually exclusive.")
+        return 1
+    if getattr(args, "chapter", None):
+        return _produce_chapter(args)
+    if getattr(args, "input", None):
+        return cmd_produce_scene(args)
+    print("Error: provide a scene input file or scene ID "
+          "(or --chapter <n> for the legacy chapter path).")
+    return 1
+
+
+def _produce_chapter(args: argparse.Namespace) -> int:
+    """Generate a Chapter Plan from a synopsis using GPT-4o (legacy path)."""
     from producer import ChapterPlanProducer
 
     config = load_config(args.project)
@@ -132,7 +146,21 @@ def cmd_produce(args: argparse.Namespace) -> int:
 # -- Command: parse ----------------------------------------------------------
 
 def cmd_parse(args: argparse.Namespace) -> int:
-    """Parse a Chapter Plan into PanelSpecs."""
+    """Parse a scene (default) or a legacy chapter plan into PanelSpecs."""
+    if getattr(args, "chapter", None) and getattr(args, "scene", None):
+        print("Error: <scene> and --chapter are mutually exclusive.")
+        return 1
+    if getattr(args, "chapter", None):
+        return _parse_chapter(args)
+    if getattr(args, "scene", None):
+        return cmd_parse_scene(args)
+    print("Error: provide a scene ID or scene file "
+          "(or --chapter <n> for the legacy chapter path).")
+    return 1
+
+
+def _parse_chapter(args: argparse.Namespace) -> int:
+    """Parse a Chapter Plan into PanelSpecs (legacy path)."""
     config = load_config(args.project)
     parser = ChapterPlanParser(config)
 
@@ -255,6 +283,20 @@ def cmd_parse_scene(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parse_scene_target(config: ProjectConfig, scene_arg: str):
+    """Parse a scene by file path or scene ID (globbed in scenes/).
+
+    Shared by the scene-scoped list/status/validate commands (Phase 3).
+    Raises SceneParserError / FileNotFoundError on failure.
+    """
+    from pipeline.scene_parser import ScenePlanParser
+    parser = ScenePlanParser(config)
+    target = Path(scene_arg)
+    if target.exists() or target.is_absolute():
+        return parser.parse(target)
+    return parser.parse_scene(scene_arg)
+
+
 # -- Command: generate -------------------------------------------------------
 
 def cmd_generate(args: argparse.Namespace) -> int:
@@ -273,7 +315,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         return _generate_scene_command(config, args)
 
     if not args.chapter:
-        print("Error: provide --chapter <n> or --scene <id>.")
+        print("Error: provide --scene <id> (or --chapter <n> for the legacy path).")
         return 1
 
     # Parse the chapter to get PanelSpecs
@@ -566,7 +608,7 @@ def cmd_regenerate(args: argparse.Namespace) -> int:
         panel_spec = matching[0].panel_spec
         surrounding = _scene_surrounding(panels, args.panel)
     elif not args.chapter:
-        print("Error: provide --chapter <n> or --scene <id>.")
+        print("Error: provide --scene <id> (or --chapter <n> for the legacy path).")
         return 1
     else:
         parser = ChapterPlanParser(config)
@@ -669,8 +711,58 @@ def cmd_list(args: argparse.Namespace) -> int:
         return 1
 
 
+def _list_panels_scene(config: ProjectConfig, args: argparse.Namespace) -> int:
+    """List all panels in a scene, grouped by element (Phase 3)."""
+    from pipeline.scene_parser import SceneParserError
+    if config.scene is None:
+        print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+        return 1
+    try:
+        result = _parse_scene_target(config, args.scene)
+    except (SceneParserError, FileNotFoundError) as e:
+        print(f"\033[31mScene parse error: {e}\033[0m")
+        return 1
+
+    prov = ProvenanceStore(config.output_dir)
+
+    print(f"Scene {result.scene_id}: {result.total_panels} panels\n")
+
+    elements: dict[str, list] = {}
+    for p in result.panels:
+        pid = p.panel_spec["panel_id"]
+        elements.setdefault(_element_of(pid), []).append(p)
+
+    for elem_key in sorted(elements):
+        panels = elements[elem_key]
+        print(f"Element {elem_key} ({len(panels)} panels):")
+        for p in panels:
+            spec = p.panel_spec
+            pid = spec["panel_id"]
+
+            has_records = prov.has_records(pid)
+            if has_records:
+                latest = prov.get_latest_record(pid)
+                attempt = latest.get("attempt_number", "?")
+                status = latest.get("outcome", {}).get("status", "?")
+                status_str = _fmt_status(status)
+                print(f"  {_fmt_panel_id(pid)}  [{spec['shot_type']}/{spec['mood']}]  "
+                      f"{status_str} (attempt {attempt})")
+            else:
+                print(f"  {_fmt_panel_id(pid)}  [{spec['shot_type']}/{spec['mood']}]  "
+                      f"\033[90mnot generated\033[0m")
+        print()
+
+    return 0
+
+
 def _list_panels(config: ProjectConfig, args: argparse.Namespace) -> int:
-    """List all panels in a chapter."""
+    """List all panels in a scene (default) or a chapter (legacy)."""
+    if getattr(args, "scene", None):
+        return _list_panels_scene(config, args)
+    if not getattr(args, "chapter", None):
+        print("Error: provide --scene <id> (or --chapter <n> for the legacy path).")
+        return 1
+
     parser = ChapterPlanParser(config)
     try:
         result = parser.parse_chapter(args.chapter)
@@ -754,15 +846,31 @@ def _list_provenance(config: ProjectConfig, args: argparse.Namespace) -> int:
 # -- Command: status ---------------------------------------------------------
 
 def cmd_status(args: argparse.Namespace) -> int:
-    """Show generation status for a chapter."""
+    """Show generation status for a scene (default) or chapter (legacy)."""
     config = load_config(args.project)
-    parser = ChapterPlanParser(config)
     prov = ProvenanceStore(config.output_dir)
 
-    try:
-        result = parser.parse_chapter(args.chapter)
-    except (ParserError, FileNotFoundError) as e:
-        print(f"\033[31mParse error: {e}\033[0m")
+    if getattr(args, "scene", None):
+        from pipeline.scene_parser import SceneParserError
+        if config.scene is None:
+            print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+            return 1
+        try:
+            result = _parse_scene_target(config, args.scene)
+        except (SceneParserError, FileNotFoundError) as e:
+            print(f"\033[31mScene parse error: {e}\033[0m")
+            return 1
+        header = f"Scene {result.scene_id}"
+    elif getattr(args, "chapter", None):
+        parser = ChapterPlanParser(config)
+        try:
+            result = parser.parse_chapter(args.chapter)
+        except (ParserError, FileNotFoundError) as e:
+            print(f"\033[31mParse error: {e}\033[0m")
+            return 1
+        header = f"Chapter {args.chapter}"
+    else:
+        print("Error: provide --scene <id> (or --chapter <n> for the legacy path).")
         return 1
 
     total = result.total_panels
@@ -784,7 +892,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         else:
             failed += 1
 
-    print(f"Chapter {args.chapter} Status")
+    print(f"{header} Status")
     print(f"{'='*40}")
     print(f"  Total panels:    {total}")
     print(f"  \033[32mSucceeded:       {succeeded}\033[0m")
@@ -816,12 +924,38 @@ def cmd_status(args: argparse.Namespace) -> int:
 # -- validate command -------------------------------------------------------
 
 def cmd_validate(args: argparse.Namespace) -> int:
-    """Validate generated panel(s) against project standards."""
-    from pipeline.validation import create_validation_pipeline
-
+    """Validate generated panel(s) (scene default; --chapter = legacy path)."""
     config = load_config(args.project)
 
-    # Parse chapter to get PanelSpecs
+    # -- Scope dispatch: scene (default) or chapter (legacy) -----------
+    if getattr(args, "scene", None):
+        if args.page:
+            print("Error: --page applies to chapters only. Scenes are unpaginated")
+            print("       (page slicing is a post-production concern).")
+            return 1
+        from pipeline.scene_parser import SceneParserError
+        if config.scene is None:
+            print("\033[31mError: project.yaml has no 'scene' block (required for scene mode).\033[0m")
+            return 1
+        try:
+            result = _parse_scene_target(config, args.scene)
+        except (SceneParserError, FileNotFoundError) as e:
+            print(f"\033[31mScene parse error: {e}\033[0m")
+            return 1
+        if args.panel:
+            panels = [p for p in result.panels if p.panel_spec["panel_id"] == args.panel]
+            if not panels:
+                print(f"\033[31mPanel '{args.panel}' not found in scene {args.scene}\033[0m")
+                return 1
+        else:
+            panels = result.panels
+        return _validate_panels(config, panels)
+
+    if not args.chapter:
+        print("Error: provide --scene <id> (or --chapter <n> for the legacy path).")
+        return 1
+
+    # -- Legacy chapter path ---------------------------------------------
     parser_obj = ChapterPlanParser(config)
     try:
         result = parser_obj.parse_chapter(args.chapter)
@@ -847,6 +981,14 @@ def cmd_validate(args: argparse.Namespace) -> int:
             return 1
     else:
         panels = result.panels
+
+    return _validate_panels(config, panels)
+
+
+def _validate_panels(config: ProjectConfig, panels: list) -> int:
+    """Run the two-stage validation loop over the selected panels (Phase 3:
+    shared by scene and chapter paths)."""
+    from pipeline.validation import create_validation_pipeline
 
     # Create validation pipeline from config
     try:
@@ -954,44 +1096,48 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser."""
     parser = argparse.ArgumentParser(
         prog="pipeline.cli",
-        description="Graphic Novel Pipeline — generate comic panels from chapter plans.",
+        description="Graphic Novel Pipeline — generate comic panels from scene plans "
+                    "(chapter plans = legacy path, Phase 3 cutover per DESIGN.md §16.9).",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-examples:
-  # Generate a chapter plan from a synopsis
-  python -m pipeline.cli produce --chapter 1 --synopsis "Alyssa wakes up..."
+examples (scene path is the default; --chapter selects the legacy path):
+  # Produce a scene from an input file (two-stage producer)
+  python -m pipeline.cli produce scene_inputs/c01_s702.input.yaml
 
-  # Parse a chapter plan into PanelSpecs
-  python -m pipeline.cli parse --chapter 1
+  # Parse a scene into PanelSpecs
+  python -m pipeline.cli parse s702
 
-  # Generate all panels for a chapter
-  python -m pipeline.cli generate --chapter 1
-
-  # Generate a single page
-  python -m pipeline.cli generate --chapter 1 --page 1
+  # Generate all panels for a scene
+  python -m pipeline.cli generate --scene s702
 
   # Generate a single panel
-  python -m pipeline.cli generate --chapter 1 --panel c01_pg1_l02_pn01
+  python -m pipeline.cli generate --scene s702 --panel s702_l01_st01_pn01
 
   # Regenerate a panel with feedback
-  python -m pipeline.cli regenerate --chapter 1 --panel c01_pg1_l02_pn03 \\
+  python -m pipeline.cli regenerate --scene s702 --panel s702_l01_st01_pn03 \\
       --feedback "Make the lighting warmer"
 
   # Regenerate backend-only (reuse last scene prompt, faster)
-  python -m pipeline.cli regenerate --chapter 1 --panel c01_pg1_l02_pn01
+  python -m pipeline.cli regenerate --scene s702 --panel s702_l01_st01_pn01
 
   # List panels and their generation status
-  python -m pipeline.cli list panels --chapter 1
+  python -m pipeline.cli list panels --scene s702
 
   # Show provenance for a panel
-  python -m pipeline.cli list provenance --panel c01_pg1_l02_pn03
+  python -m pipeline.cli list provenance --panel s702_l01_st01_pn03
 
-  # Show chapter status summary
-  python -m pipeline.cli status --chapter 1
+  # Show scene status summary
+  python -m pipeline.cli status --scene s702
 
   # Validate generated panels (GPT-4o vision scoring)
-  python -m pipeline.cli validate --chapter 1 --page 1
-  python -m pipeline.cli validate --chapter 1 --panel c01_pg1_l02_pn03
+  python -m pipeline.cli validate --scene s702
+  python -m pipeline.cli validate --scene s702 --panel s702_l01_st01_pn03
+
+  # Legacy chapter path (frozen, explicit opt-in)
+  python -m pipeline.cli produce --chapter 1 --synopsis "Alyssa wakes up..."
+  python -m pipeline.cli parse --chapter 1
+  python -m pipeline.cli generate --chapter 1
+  python -m pipeline.cli status --chapter 1
         """,
     )
 
@@ -1011,20 +1157,37 @@ examples:
     # -- produce --
     p_produce = subparsers.add_parser(
         "produce",
-        help="Generate a Chapter Plan from a synopsis (GPT-4o)",
+        help="Produce a scene from an input file (default) or a legacy chapter plan",
+        description=(
+            "Scene path (default): produce a complete scene via the two-stage "
+            "Scene Producer. Legacy path: pass --chapter <n> with --synopsis to "
+            "use the frozen Chapter Plan Producer (DESIGN.md §16.9)."
+        ),
     )
-    p_produce.add_argument("--chapter", type=int, required=True, help="Chapter number")
-    p_produce.add_argument("--synopsis", help="Chapter synopsis text")
-    p_produce.add_argument("--synopsis-file", help="Path to a file containing the synopsis")
+    p_produce.add_argument(
+        "input", nargs="?",
+        help="Scene input file path or scene ID (globbed in scene_inputs/)",
+    )
+    p_produce.add_argument("--chapter", type=int, help="Chapter number (legacy path)")
+    p_produce.add_argument("--synopsis", help="Chapter synopsis text (legacy path)")
+    p_produce.add_argument("--synopsis-file", help="Path to a synopsis file (legacy path)")
     p_produce.add_argument("--model", help="Override the LLM model (default: gpt-4o)")
     p_produce.set_defaults(func=cmd_produce)
 
     # -- parse --
     p_parse = subparsers.add_parser(
         "parse",
-        help="Parse a Chapter Plan into PanelSpecs",
+        help="Parse a scene (default) or a legacy chapter plan into PanelSpecs",
+        description=(
+            "Scene path (default): full scene parse gauntlet. Legacy path: "
+            "pass --chapter <n> (DESIGN.md §16.9)."
+        ),
     )
-    p_parse.add_argument("--chapter", type=int, required=True, help="Chapter number")
+    p_parse.add_argument(
+        "scene", nargs="?",
+        help="Scene file path or scene ID (globbed in scenes/)",
+    )
+    p_parse.add_argument("--chapter", type=int, help="Chapter number (legacy path)")
     p_parse.set_defaults(func=cmd_parse)
 
     # -- produce-scene --
@@ -1133,16 +1296,18 @@ examples:
         help="List panels or provenance records",
     )
     p_list.add_argument("what", choices=["panels", "provenance"], help="What to list")
-    p_list.add_argument("--chapter", type=int, help="Chapter number (for listing panels)")
+    p_list.add_argument("--scene", help="Scene ID or scene file (for listing panels, default path)")
+    p_list.add_argument("--chapter", type=int, help="Chapter number (legacy path, for listing panels)")
     p_list.add_argument("--panel", help="Panel ID (for listing provenance)")
     p_list.set_defaults(func=cmd_list)
 
     # -- status --
     p_status = subparsers.add_parser(
         "status",
-        help="Show generation status for a chapter",
+        help="Show generation status for a scene (default) or chapter (legacy)",
     )
-    p_status.add_argument("--chapter", type=int, required=True, help="Chapter number")
+    p_status.add_argument("--scene", help="Scene ID or scene file (default path)")
+    p_status.add_argument("--chapter", type=int, help="Chapter number (legacy path)")
     p_status.set_defaults(func=cmd_status)
 
     # -- validate --
@@ -1150,8 +1315,9 @@ examples:
         "validate",
         help="Validate generated panels against project standards (GPT-4o vision)",
     )
-    p_val.add_argument("--chapter", type=int, required=True, help="Chapter number")
-    p_val.add_argument("--page", type=str, help="Validate only this page (e.g. 1 or 2_1)")
+    p_val.add_argument("--scene", help="Scene ID or scene file (default path)")
+    p_val.add_argument("--chapter", type=int, help="Chapter number (legacy path)")
+    p_val.add_argument("--page", type=str, help="Validate only this page (e.g. 1 or 2_1) — chapters only")
     p_val.add_argument("--panel", help="Validate only this panel ID")
     p_val.set_defaults(func=cmd_validate)
 

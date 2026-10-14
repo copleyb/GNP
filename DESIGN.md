@@ -1146,7 +1146,7 @@ The pipeline is CLI-first for v1. A GUI may be added later as a separate layer. 
 
 ## 16. Scene Plan Format and Template System (Scope Redesign)
 
-**Status:** Design locked September 2026 (TODO item 23 — design phase). Implementation and migration pending. This section documents the scene-based architecture that will supersede the chapter-plan authoring path. Until migration (plan pending, see §16.7), chapter plans (§7, §8, §9) remain the operational path.
+**Status:** COMPLETE (Phase 3 cutover, October 2026 — TODO item 23). Design locked September 2026, implemented in three phases (§16.9). The scene path is now the ACTIVE and DEFAULT operational path; chapter plans (§7, §8, §9) are the frozen legacy path, available via explicit `--chapter` flags and pending natural deletion (§16.9 phase 3).
 
 ### 16.1 Authoring model
 
@@ -1242,7 +1242,7 @@ Panel entries and the scene header accept optional additive fields. A future fie
 **Phases:**
 1. **Scene Parser path (additive, zero API cost):** `scene_plan.schema.json`, the `templates/` registry (starter set committed Sep 2026: `panels.yaml`, `strips.yaml`, `layouts.yaml` — A4 @ 300dpi, bleed 30, gutter 20), the Scene Parser with ref resolution → deterministic panel-set derivation → exact-coverage gate → flow geometry → PanelSpec emission. Offline test suite. Project-level gutter/bleed settings wired into `project.yaml`.
 2. **Scene Producer (additive, mockable):** `scene_producer.py` generating complete scene files — `elements` list plus full `panels` map with derived positional IDs. Scene-scoped CLI produce/parse commands.
-3. **Cutover:** flag default flips to scene mode; CLI defaults switch. Old chapter path remains in place, **frozen, not maintained** — no retrofit of shared-contract changes. When an evolving PanelSpec contract breaks old-path tests, that is the natural trigger to delete the old path (deferred, not cancelled).
+3. **Cutover (COMPLETE, October 2026):** flag default flipped to `scene`; CLI defaults switched (see the Phase 3 cutover addendum in §16.12). Old chapter path remains in place, **frozen, not maintained** — no retrofit of shared-contract changes. When an evolving PanelSpec contract breaks old-path tests, that is the natural trigger to delete the old path (deferred, not cancelled).
 
 ### 16.10 Phase 1 implementation notes (Scene Parser path)
 
@@ -1324,4 +1324,4 @@ Panel entries and the scene header accept optional additive fields. A future fie
 
 **Addendum 3 (exclusion-cue convention, shared with the chapter producer):** Stage-2 roster context now uses the shared deterministic builder `src/roster_context.py` (see §7 exclusion-cue convention): `rarely seen` physical-description fields are suppressed as writing cues, and character exclusions are promoted to `IDENTITY RULE` lines. This is the first layer of the item-29 exclusion work; the second layer (a pre-commit gate checking returned panel prose against rostered characters' exclusions) remains open. Environment exclusions keep their existing footnote format.
 
-**Next:** Phase 3 cutover — flip `pipeline_mode` to `scene`, CLI defaults switch; the chapter path stays frozen in place per §16.9. Known Phase 3 work item: scene PanelSpecs carry no `page_id` (scene space is unpaginated by §16.3), so the surrounding-panel context the scene-prompt generator uses must be grouped per element/scene window instead of per page.
+**Phase 3 cutover (COMPLETE, October 2026):** `pipeline_mode` default is now `scene` (config fallback and `project.yaml`), and the CLI is scene-first everywhere — `--chapter` is the explicit legacy opt-in. Concretely: `produce <input>` / `parse <scene>` are the scene commands by default (chapter behavior via `--chapter`; `produce-scene` / `parse-scene` remain as aliases); `generate` / `regenerate` scope error text names `--scene` first; `list panels`, `status`, and `validate` accept `--scene` (scene panels grouped by element; `--page` rejected for scenes — unpaginated per §16.3); the validation loop is shared by both paths via `_validate_panels`. Scope dispatch semantics: **explicit flags always win**; the `pipeline_mode` flag records the project's active path and sets defaults — it never blocks either path. The known pre-cutover work item (element-grouped surrounding-panel context, no `page_id` in scene PanelSpecs) shipped early with scene-scoped generation and carries over unchanged. Chapter path frozen per §16.9; old-path test breakage remains the natural deletion trigger.

@@ -41,45 +41,48 @@ cp .env.example .env
 
 All commands run via `PYTHONPATH=src python -m pipeline.cli` from the project root.
 
+The scene path is the default (Phase 3 cutover, DESIGN.md §16.9). The legacy
+chapter-plan path is frozen and available via explicit `--chapter` flags.
+
 ```bash
-# 1. Generate a Chapter Plan from a synopsis
-PYTHONPATH=src python -m pipeline.cli produce --chapter 1 --synopsis "Alyssa wakes up in her apartment..."
+# 1. Produce a scene from an input file (two-stage producer)
+PYTHONPATH=src python -m pipeline.cli produce scene_inputs/c01_s702.input.yaml
 
-# Or from a file
-PYTHONPATH=src python -m pipeline.cli produce --chapter 1 --synopsis-file synopsis.txt
-
-# 2. Parse the Chapter Plan into PanelSpecs
-PYTHONPATH=src python -m pipeline.cli parse --chapter 1
+# 2. Parse the scene into PanelSpecs
+PYTHONPATH=src python -m pipeline.cli parse s702
 
 # 3. Generate panel images
-# Full chapter:
-PYTHONPATH=src python -m pipeline.cli generate --chapter 1
-
-# Single page:
-PYTHONPATH=src python -m pipeline.cli generate --chapter 1 --page 1
+# Full scene:
+PYTHONPATH=src python -m pipeline.cli generate --scene s702
 
 # Single panel:
-PYTHONPATH=src python -m pipeline.cli generate --chapter 1 --panel c01_pg1_l02_pn01
+PYTHONPATH=src python -m pipeline.cli generate --scene s702 --panel s702_l01_st01_pn01
 
 # 4. Regenerate a panel with feedback
 # With director's note (full pipeline re-run):
-PYTHONPATH=src python -m pipeline.cli regenerate --chapter 1 --panel c01_pg1_l02_pn03 \
+PYTHONPATH=src python -m pipeline.cli regenerate --scene s702 --panel s702_l01_st01_pn03 \
     --feedback "Make the lighting warmer"
 
 # Backend-only (reuse last scene prompt, faster):
-PYTHONPATH=src python -m pipeline.cli regenerate --chapter 1 --panel c01_pg1_l02_pn01
-
-# Force full pipeline without feedback:
-PYTHONPATH=src python -m pipeline.cli regenerate --chapter 1 --panel c01_pg1_l02_pn01 --full-pipeline
+PYTHONPATH=src python -m pipeline.cli regenerate --scene s702 --panel s702_l01_st01_pn01
 
 # 5. Check status
-# List all panels with generation status:
-PYTHONPATH=src python -m pipeline.cli list panels --chapter 1
+# List all panels in a scene with generation status:
+PYTHONPATH=src python -m pipeline.cli list panels --scene s702
 
 # Show provenance for a specific panel:
-PYTHONPATH=src python -m pipeline.cli list provenance --panel c01_pg1_l02_pn03
+PYTHONPATH=src python -m pipeline.cli list provenance --panel s702_l01_st01_pn03
 
-# Chapter status summary:
+# Scene status summary:
+PYTHONPATH=src python -m pipeline.cli status --scene s702
+
+# 6. Validate generated panels (GPT-4o vision scoring)
+PYTHONPATH=src python -m pipeline.cli validate --scene s702
+
+# Legacy chapter path (frozen, explicit opt-in):
+PYTHONPATH=src python -m pipeline.cli produce --chapter 1 --synopsis "Alyssa wakes up..."
+PYTHONPATH=src python -m pipeline.cli parse --chapter 1
+PYTHONPATH=src python -m pipeline.cli generate --chapter 1
 PYTHONPATH=src python -m pipeline.cli status --chapter 1
 ```
 

@@ -107,10 +107,11 @@ class ProjectConfig:
     validation: ValidationConfig | None = None
     scene: SceneConfig | None = None
 
-    # Pipeline mode flag (DESIGN.md §16.9): "chapter" (old path, frozen) or
-    # "scene" (new path). Selects producer+parser wiring at the CLI level;
-    # the shared PanelSpec-driven downstream never branches on it.
-    pipeline_mode: str = "chapter"
+    # Pipeline mode flag (DESIGN.md §16.9): "scene" (new path, ACTIVE since
+    # the Phase 3 cutover) or "chapter" (old path, frozen). Selects
+    # producer+parser wiring at the CLI level; the shared PanelSpec-driven
+    # downstream never branches on it. Explicit CLI flags always win.
+    pipeline_mode: str = "scene"
 
     notes: str | None = None
 
@@ -256,6 +257,6 @@ def load_config(project_root: str | Path) -> ProjectConfig:
         scene_prompt=scene_prompt_config,
         validation=validation_config,
         scene=scene_config,
-        pipeline_mode=project_data.get("pipeline_mode", "chapter"),
+        pipeline_mode=project_data.get("pipeline_mode", "scene"),
         notes=project_data.get("notes"),
     )

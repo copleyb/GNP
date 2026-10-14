@@ -18,9 +18,11 @@ templates_dir: templates/
 output_dir: output/
 
 # Pipeline mode (see DESIGN.md §16.9): "chapter" = chapter-plan path (frozen),
-# "scene" = scene-plan path (Scope Redesign). Selects producer+parser wiring
-# at the CLI level only. Phase 3 cutover flips this default.
-pipeline_mode: chapter
+# "scene" = scene-plan path (Scope Redesign, ACTIVE path). "chapter" = legacy
+# chapter-plan path (frozen). Selects producer+parser wiring at the CLI level
+# only; explicit CLI flags always win. Phase 3 cutover complete (Oct 2026):
+# default flipped to scene.
+pipeline_mode: scene
 
 # Scene-mode geometry defaults (see DESIGN.md §16.3). Project-level values —
 # templates carry no geometry; the Scene Parser flows everything with these.
