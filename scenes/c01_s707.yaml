@@ -1,0 +1,99 @@
+scene_id: s707
+title: Ross Scene
+narrative: Hood crouches silently on the rooftop, his keen gaze scanning the darkened
+  alley below, waiting with a tense anticipation. Alyssa enters the alley, her footsteps
+  echoing off the walls as she spots Hood peering down from above. She calls out to
+  him, a familiar warmth in her voice that slices through the night air. With a swift
+  motion, Hood leaps from his perch, landing gracefully beside her. They engage in
+  a quiet but intense conversation, traded words cloaked in urgency and camaraderie.
+  Their discussion concludes, and together, they walk out of the alley, disappearing
+  into the shadows with a shared purpose.
+elements:
+- layout: l_cinematic_9
+panels:
+  s707_l01_st01_pn01:
+    description: A wide shot of a rooftop in a city under the moonlight, casting dramatic
+      shadows across the scene. Hood is crouched on the edge of the rooftop, a silhouette
+      against the night sky. His figure is tense, alert, and scanning the alley below.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: vigilant
+  s707_l01_st01_pn02:
+    description: Overhead view of the city alley. Alyssa enters from the left, her
+      silhouette outlined by the ambient glow of distant neon lights. Her movements
+      are cautious yet determined, contrasting with the silent, empty alley.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: overhead
+    mood: determined
+  s707_l01_st01_pn03:
+    description: Close-up of Alyssa as she pauses mid-stride. Her eyes are wide with
+      surprise and recognition as she looks upward. Her expression is a blend of curiosity
+      and familiarity.
+    characters:
+    - id: alyssa
+    environment: city_exterior
+    shot_type: close_up
+    mood: recognition
+  s707_l01_st02_pn01:
+    description: A medium shot of Hood seen from the alley perspective. He is perched
+      high above, his form partially in shadow, as he looks down on Alyssa. The moonlight
+      illuminates the edge of his hoodie but leaves his face obscured.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: medium
+    mood: watchful
+  s707_l01_st02_pn02:
+    description: Wide shot capturing the moment Alyssa calls up to Hood. Her stance
+      is relaxed yet expectant, and her voice is silent yet visually implied. Hood
+      is still, poised like a coiled spring, ready to act.
+    characters:
+    - id: alyssa
+    - id: hood
+    environment: city_exterior
+    shot_type: wide
+    mood: anticipatory
+  s707_l01_st02_pn03:
+    description: Hood's mid-descent from the rooftop, captured in a dynamic low-angle
+      shot. His body is stretched out, a fluid motion through the air, with his hoodie
+      flaring in the breeze.
+    characters:
+    - id: hood
+    environment: city_exterior
+    shot_type: low_angle
+    mood: dynamic
+  s707_l01_st03_pn01:
+    description: Medium shot of Hood landing softly beside Alyssa in the alley. His
+      movement is graceful and controlled, and Alyssa leans slightly toward him, her
+      expression welcoming.
+    characters:
+    - id: hood
+    - id: alyssa
+    environment: city_exterior
+    shot_type: medium
+    mood: welcoming
+  s707_l01_st03_pn02:
+    description: Close-up of Hood and Alyssa as they exchange intense yet familiar
+      looks. Their faces are earnest, and their proximity suggests camaraderie and
+      a shared understanding between them.
+    characters:
+    - id: hood
+    - id: alyssa
+    environment: city_exterior
+    shot_type: close_up
+    mood: intense
+  s707_l01_st03_pn03:
+    description: Wide shot of the alley as Hood and Alyssa walk side by side into
+      the night, their figures gradually disappearing into the shadows. The atmosphere
+      is heavy with purpose and unity.
+    characters:
+    - id: hood
+    - id: alyssa
+    environment: city_exterior
+    shot_type: wide
+    mood: unified
+chapter_tag: c01

@@ -1,0 +1,12 @@
+# The user owns STRUCTURE (elements); the producer does the rest (DESIGN.md §16.11).
+scene_id: s707
+chapter_tag: c01
+title: "Ross Scene"
+
+synopsis: |
+  Hood is crouching on the edge of a rooftop, looking down into an alley. Alyssa walks into the alley,
+    looks up and sees Hood, and calls up to him. He jumps down into the alley and they have a conversation
+    before leaving together.
+
+elements:
+  - layout: l_cinematic_9
