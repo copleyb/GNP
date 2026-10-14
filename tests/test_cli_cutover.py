@@ -222,3 +222,39 @@ class TestScopeErrorText:
         assert rc == 1
         out = capsys.readouterr().out
         assert "--scene" in out and "legacy" in out
+
+
+class TestProduceSceneModelDefault:
+    """Regression (cutover): bare `produce <input>` carries --model=None into
+    cmd_produce_scene (the chapter parser has no default for the flag). The
+    handler must fall back to gpt-4o — live failure was OpenAI 400
+    'you must provide a model parameter'."""
+
+    def test_produce_scene_falls_back_when_model_none(self, monkeypatch):
+        import scene_producer as sp
+
+        seen = {}
+
+        class FakeProducer:
+            def __init__(self, config, model=None, progress_callback=None):
+                seen["model"] = model
+
+            def produce_scene(self, target):
+                seen["target"] = target
+                return {
+                    "parse_result": SimpleNamespace(scene_id="s999", total_panels=9),
+                    "attempts": {"chunker": 1, "elements": [2, 1]},
+                    "total_llm_calls": 2,
+                    "file_path": "scenes/fake.yaml",
+                }
+
+        monkeypatch.setattr(sp, "SceneProducer", FakeProducer)
+        monkeypatch.setattr(sp, "SceneProducerError", Exception)
+        monkeypatch.setattr(sp, "SceneInputError", Exception)
+
+        rc = cli.cmd_produce_scene(
+            SimpleNamespace(project=".", input="s707", model=None)
+        )
+        assert rc == 0
+        assert seen["model"] == "gpt-4o", "model=None must not reach the API"
+        assert seen["target"] == "s707"

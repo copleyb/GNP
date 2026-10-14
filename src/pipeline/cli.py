@@ -219,7 +219,12 @@ def cmd_produce_scene(args: argparse.Namespace) -> int:
 
     from scene_producer import SceneProducer, SceneProducerError, SceneInputError
 
-    producer = SceneProducer(config, model=args.model, progress_callback=_progress_printer)
+    # --model has no default on the bare `produce` parser (chapter path
+    # treats it as an override), so fall back here instead of passing None
+    # to the API (regression: OpenAI 400 "you must provide a model parameter").
+    producer = SceneProducer(
+        config, model=args.model or "gpt-4o", progress_callback=_progress_printer
+    )
 
     target = args.input
     print(f"Producing scene from: {target}")
