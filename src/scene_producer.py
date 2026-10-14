@@ -424,11 +424,12 @@ CRITICAL RULES:
 3. Only use character ids from the provided roster. Never invent characters. Each character entry: {"id": <character_id>, "costume": <variant_id or null>}. Use the costume field ONLY when the character wears a non-default costume; null means default.
 4. Only use environment ids from the provided roster. Never invent environments.
 5. Each description must be ABSOLUTE — spatially and physically complete on its own. The image model reading it has NO memory of other panels or of the synopsis: describe position (left/center/right, foreground/background), pose, action, and what is visible, not references like "he turns" or "as before".
-6. Respect character and environment exclusions and style forbidden elements.
-7. For EACH panel, keep the description and characters array in exact agreement: every character named or depicted in the description MUST appear in that panel's characters array, and every character in the array MUST be described as present in that panel. Check each panel separately before returning the array.
-8. shot_type must be one of: wide, medium, close_up, extreme_close_up, overhead, low_angle, dutch_angle.
-9. mood is a short phrase (e.g. "tense", "contemplative").
-10. Maintain continuity with the WHERE WE LEFT OFF handoff where given — same characters keep their costumes and carried props unless the story changes them.
+6. Convey emotion and action through CONCRETE PHYSICAL BLOCKING, not abstract mood words. Specify exact body position, stance, weight distribution, limb placement, and gaze direction — write "shoulders hunched forward, head lowered, weight on the balls of his feet, fists clenched at his sides" instead of "he looks determined". The image model cannot interpret mood; it can only render bodies in space.
+7. Respect character and environment exclusions and style forbidden elements.
+8. For EACH panel, keep the description and characters array in exact agreement: every character named or depicted in the description MUST appear in that panel's characters array, and every character in the array MUST be described as present in that panel. Check each panel separately before returning the array.
+9. shot_type must be one of: wide, medium, close_up, extreme_close_up, overhead, low_angle, dutch_angle.
+10. mood is a short phrase (e.g. "tense", "contemplative").
+11. Maintain continuity with the WHERE WE LEFT OFF handoff where given — same characters keep their costumes and carried props unless the story changes them.
 
 Your output shape and roster IDs are validated. Character-to-description agreement and exclusions are creative requirements: check them yourself before returning."""
 

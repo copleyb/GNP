@@ -202,6 +202,21 @@ class TestStage1Chunker:
 
 # -- Stage 2: per-element content ----------------------------------------------------------
 
+class TestPhysicalBlockingRule:
+
+    def test_stage2_system_prompt_demands_concrete_blocking(self, config):
+        """Item 14: descriptions must use concrete physical blocking, not
+        abstract mood words the image model cannot render."""
+        mock = standard_mock()
+        make_producer(config, mock).produce_scene(FIXTURES_DIR / "fixture_scene_input.yaml")
+        element_systems = [system for name, system, _ in mock.prompts if name == "element_panels"]
+        assert len(element_systems) == 2
+        for system in element_systems:
+            assert "CONCRETE PHYSICAL BLOCKING" in system
+            assert "weight on the balls of his feet" in system
+            assert "instead of \"he looks determined\"" in system
+
+
 class TestStage2ElementCalls:
 
     def test_element_prompt_requires_character_exclusions_and_accountability(self, config):
